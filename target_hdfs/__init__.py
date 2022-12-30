@@ -16,12 +16,9 @@ from .helpers import flatten, flatten_schema, concat_tables, write_file_to_hdfs,
 _all__ = ["main"]
 
 LOGGER = singer.get_logger()
-LOGGER.setLevel(os.getenv("LOGGER_LEVEL", "INFO"))
 
 REQUIRED_CONFIG_KEYS = [
-    "host"
-    "user",
-    "password",
+    "hdfs_destination_path"
 ]
 
 EXTENSION_MAPPING = {
