@@ -3,17 +3,20 @@ import io
 import json
 import os
 import sys
+from multiprocessing import Queue, Process
 from collections import defaultdict
-from datetime import datetime
+from enum import Enum
 from typing import Tuple
 
 import singer
 from jsonschema.validators import Draft4Validator
 
-from target_hdfs.hdfs_client import HDFSClient
-from target_hdfs.helpers import flatten
+from .helpers import flatten, flatten_schema, concat_tables, write_file_to_hdfs, create_hdfs_dir\
+
+_all__ = ["main"]
 
 LOGGER = singer.get_logger()
+LOGGER.setLevel(os.getenv("LOGGER_LEVEL", "INFO"))
 
 REQUIRED_CONFIG_KEYS = [
     "host"
@@ -30,6 +33,13 @@ EXTENSION_MAPPING = {
 }
 
 
+class MessageType(Enum):
+    RECORD = 1
+    STATE = 2
+    SCHEMA = 3
+    EOF = 4
+
+
 def emit_state(state):
     if state is not None:
         line = json.dumps(state)
@@ -44,100 +54,141 @@ def get_compression_extension(compression_method) -> Tuple[str, str]:
         # The target is prepared to accept all the compression methods provided by the pandas module
         compression_extension = EXTENSION_MAPPING.get(compression_method.upper())
         if compression_extension is None:
-            LOGGER.warning("unsuported compression method.")
-            compression_method = None
+            raise Exception("Unsupported compression method.")
     return compression_extension, compression_method
 
 
-def persist_messages(hdfs_client, messages, destination_path,
-                     compression_method=None, streams_in_separate_folder=False,
-                     force_output_schema_cast=True):
-    state = None
-    schemas = {}
-    key_properties = {}
-    validators = {}
+def persist_messages(messages,
+                     hdfs_destination_path,
+                     compression_method=None,
+                     streams_in_separate_folder=False,
+                     sync_ymd_partition=None,
+                     file_size_mb=-1):
+        ## Static information shared among processes
+        schemas = {}
+        key_properties = {}
+        validators = {}
 
-    records = defaultdict(list)
+        compression_extension, compression_method = get_compression_extension(compression_method)
 
-    compression_extension, compression_method = get_compression_extension(compression_method)
+        filename_separator = "-"
+        if streams_in_separate_folder:
+            LOGGER.info("writing streams in separate folders")
+            filename_separator = os.path.sep
+        create_hdfs_dir(hdfs_destination_path)
+        ## End of Static information shared among processes
 
-    filename_separator = "-"
-    if force_output_schema_cast:
-        LOGGER.info("forcing the output cast to the provided schema")
-    if streams_in_separate_folder:
-        LOGGER.info("writing streams in separate folders")
-        filename_separator = os.path.sep
-    if not os.path.exists(destination_path):
-        os.makedirs(destination_path)
+        # Object that signals shutdown
+        _break_object = object()
 
-    for message in messages:
-        try:
-            message = singer.parse_message(message).asdict()
-        except json.decoder.JSONDecodeError:
-            raise Exception("Unable to parse:\n{}".format(message))
-
-        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-
-        message_type = message["type"]
-        if message_type == "RECORD":
-            if message["stream"] not in schemas:
-                raise Exception(f"A record for stream {message['stream']} was encountered "
-                                "before a corresponding schema")
-            stream_name = message["stream"]
-            validators[message["stream"]].validate(message["record"])
-            flattened_record = flatten(message["record"], schemas.get(stream_name, {}))
-            # Once the record is flattened, it is added to the final record list,
-            # which will be stored in the parquet file.
-            records[stream_name].append(flattened_record)
+        def producer(message_buffer: io.TextIOWrapper, w_queue: Queue):
             state = None
-        elif message_type == "STATE":
-            LOGGER.debug(f"Setting state to {message['value']}")
-            state = message["value"]
-        elif message_type == "SCHEMA":
-            stream = message["stream"]
-            schemas[stream] = message["schema"]
-            LOGGER.debug(f"Schema: {schemas[stream]}")
-            validators[stream] = Draft4Validator(message["schema"])
-            key_properties[stream] = message["key_properties"]
-        else:
-            LOGGER.warning(f'Unknown message type {message["type"]} in message {message}')
+            try:
+                for message in message_buffer:
+                    LOGGER.debug(f"target-parquet got message: {message}")
+                    try:
+                        message = singer.parse_message(message).asdict()
+                    except json.JSONDecodeError:
+                        raise Exception(f'Unable to parse:\n{message}')
 
-        if len(records) == 0:
-            # If there are not any records retrieved, it is not necessary to create a file.
-            LOGGER.info("There were not any records retrieved.")
-            return state
+                    message_type = message["type"]
+                    if message_type == "RECORD":
+                        stream_name = message["stream"]
+                        if stream_name not in schemas:
+                            raise ValueError(f'A record for stream {stream_name} was encountered '
+                                             f'before a corresponding schema')
+                        validators[stream_name].validate(message["record"])
+                        flattened_record = flatten(message["record"], schemas[stream_name])
+                        # Once the record is flattened, it is added to the final record list,
+                        # which will be stored in the parquet file.
+                        w_queue.put((MessageType.RECORD, stream_name, flattened_record))
+                        state = None
+                    elif message_type == "STATE":
+                        LOGGER.debug(f'Setting state to {message["value"]}')
+                        state = message["value"]
+                    elif message_type == "SCHEMA":
+                        stream = message["stream"]
+                        validators[stream] = Draft4Validator(message["schema"])
+                        schemas[stream] = flatten_schema(message["schema"]["properties"])
+                        LOGGER.debug(f"Schema: {schemas[stream]}")
+                        key_properties[stream] = message["key_properties"]
+                        w_queue.put((MessageType.SCHEMA, stream, schemas[stream]))
+                    else:
+                        LOGGER.warning(f'Unknown message type {message["type"]} in message {message}')
+                w_queue.put((MessageType.EOF, _break_object, None))
+                return state
+            except Exception as Err:
+                w_queue.put((MessageType.EOF, _break_object, None))
+                raise Err
 
-        # Saving Files
-        for stream_name in records.keys():
-            LOGGER.info(f"Saving file for {stream_name}.")
-            hdfs_client.write_file(
-                current_stream_name=stream_name,
-                records=records.pop(stream_name),
-                schema=schemas.get(stream_name, {}),
-                hdfs_destination_path=destination_path,
-                compression_extension=compression_extension,
-                compression_method=compression_method,
-                filename_separator=filename_separator,
-                streams_in_separate_folder=streams_in_separate_folder,
-                force_output_schema_cast=force_output_schema_cast)
+        def consumer(receiver):
+            files_created = []
+            current_stream_name = None
+
+            records = defaultdict(list)
+            records_count = defaultdict(int)
+            dataframes = {}
+            schemas = {}
+
+            while True:
+                (message_type, stream_name, record) = receiver.get()  # q.get()
+                if message_type == MessageType.RECORD:
+                    if stream_name != current_stream_name and current_stream_name is not None:
+                        files_created.append(write_file(current_stream_name, dataframes, records, schemas))
+                    current_stream_name = stream_name
+                    records[stream_name].append(record)
+                    records_count[stream_name] += 1
+                    # Update the pyarrow table on every 1000 records
+                    if len(records[current_stream_name]) % 1000 == 0:
+                        concat_tables(current_stream_name, dataframes, records, schemas)
+                    if (file_size_mb > 0) and (dataframes[current_stream_name].nbytes / (1024 * 1024) >= file_size_mb):
+                        files_created.append(write_file(current_stream_name, dataframes, records, schemas))
+                elif message_type == MessageType.SCHEMA:
+                    schemas[stream_name] = record
+                elif message_type == MessageType.EOF:
+                    files_created.append(write_file(current_stream_name, dataframes, records, schemas))
+                    LOGGER.info(f"Wrote {len(files_created)} files")
+                    LOGGER.debug(f"Wrote {files_created} files")
+                    break
+
+        def write_file(current_stream_name, dataframes, records, schemas):
+            write_file_to_hdfs(current_stream_name,
+                               dataframes,
+                               records,
+                               schemas[current_stream_name],
+                               hdfs_destination_path,
+                               compression_extension,
+                               compression_method,
+                               filename_separator,
+                               sync_ymd_partition,
+                               streams_in_separate_folder)
+
+
+        q = Queue()
+        t2 = Process(target=consumer, args=(q,),)
+        t2.start()
+        state = producer(messages, q)
+        t2.join()
         return state
 
 
-if __name__ == '__main__':
+def main():
     config = singer.utils.parse_args(REQUIRED_CONFIG_KEYS).config
-
-    hdfs_client = HDFSClient(host=config.host, user=config.user, password=config.password)
 
     # The target expects that the tap generates UTF-8 encoded text.
     input_messages = io.TextIOWrapper(sys.stdin.buffer, encoding="utf-8")
     state = persist_messages(
-        hdfs_client=hdfs_client,
         messages=input_messages,
-        destination_path=config.get("destination_path", "output"),
+        hdfs_destination_path=config.get("hdfs_destination_path", "output"),
         compression_method=config.get("compression_method", "gzip"),
         streams_in_separate_folder=config.get("streams_in_separate_folder", True),
-        force_output_schema_cast=config.get("force_output_schema_cast", True),
+        file_size_mb=config.get("file_size_mb", -1),
+        sync_ymd_partition=config.get("sync_ymd_partition")
     )
 
     emit_state(state)
     LOGGER.debug("Exiting normally")
+
+
+if __name__ == "__main__":
+    main()

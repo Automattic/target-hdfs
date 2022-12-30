@@ -1,8 +1,12 @@
+import gc
 import os
-from typing import List, Union, MutableMapping
+import tempfile
+from datetime import datetime
+from typing import List, Union, MutableMapping, Dict
 
 import pyarrow as pa
 import singer
+from pyarrow.parquet import ParquetWriter, ParquetFile
 
 LOGGER = singer.get_logger()
 LOGGER.setLevel(os.getenv("LOGGER_LEVEL", "INFO"))
@@ -149,3 +153,86 @@ def flatten_schema_to_pyarrow_schema(flatten_schema_dictionary, fields_ordered) 
         [_field_type_to_pyarrow_field(field_name, flatten_schema_dictionary[field_name])
          for field_name in fields_ordered]
     )
+
+
+def create_dataframe(list_dict: List[Dict], schema: Dict):
+    """"Create a pyarrow Table from a python list of dict"""
+    fields = set()
+    for d in list_dict:
+        fields = fields.union(d.keys())
+    data = {f: [row.get(f) for row in list_dict] for f in fields}
+    dataframe = pa.table(data).cast(flatten_schema_to_pyarrow_schema(schema, list(fields)))
+    return dataframe
+
+
+def concat_tables(current_stream_name: str, dataframes: Dict[str, pa.Table],
+                  records: Dict[str, List[Dict]], schema: Dict):
+    """Create a dataframe from records and concatenate with the existing one"""
+    dataframe = create_dataframe(records.pop(current_stream_name), schema)
+    if current_stream_name not in dataframes:
+        dataframes[current_stream_name] = dataframe
+    else:
+        dataframes[current_stream_name] = pa.concat_tables([dataframes[current_stream_name], dataframe])
+    LOGGER.debug(f'Database[{current_stream_name}] size: '
+                 f'{dataframes[current_stream_name].nbytes / 1024 / 1024} MB | '
+                 f'{dataframes[current_stream_name].num_rows} rows')
+
+
+def create_hdfs_dir(hdfs_path):
+    """Create HDFS Path"""
+    pa.fs.HadoopFileSystem('default').create_dir(hdfs_path)
+
+
+def upload_to_hdfs(local_file, destination_path_hdfs) -> None:
+    """Upload a local file to HDFS using RPC"""
+    pa.fs.copy_files(
+        local_file,
+        destination_path_hdfs,
+        source_filesystem=pa.fs.LocalFileSystem(),
+        destination_filesystem=pa.fs.HadoopFileSystem('default')
+    )
+
+
+def write_file_to_hdfs(
+        current_stream_name,
+        dataframes,
+        records,
+        schema,
+        hdfs_destination_path,
+        compression_extension,
+        compression_method,
+        filename_separator='-',
+        sync_ymd_partition=None,
+        streams_in_separate_folder=True
+):
+    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S-%f")
+
+    # Converting the last records to pyarrow table
+    if records[current_stream_name]:
+        concat_tables(current_stream_name, dataframes, records, schema)
+
+    hdfs_filepath = generate_hdfs_path(current_stream_name, hdfs_destination_path, streams_in_separate_folder,
+                                       sync_ymd_partition)
+    create_hdfs_dir(hdfs_filepath)
+
+    LOGGER.debug(f"Writing files from {current_stream_name} stream to HDFS {hdfs_filepath}")
+    with tempfile.NamedTemporaryFile("wb") as tmp_file:
+        ParquetWriter(tmp_file.name, dataframes[current_stream_name].schema,
+                      compression=compression_method).write_table(dataframes[current_stream_name])
+        filename = f"{current_stream_name}{filename_separator}{timestamp}{compression_extension}.parquet"
+        upload_to_hdfs(tmp_file, os.path.join(hdfs_filepath, filename))
+
+    # explicit memory management. This can be usefull when working on very large data groups
+    del dataframes[current_stream_name]
+    gc.collect()
+
+    return hdfs_filepath
+
+
+def generate_hdfs_path(current_stream_name, hdfs_destination_path, streams_in_separate_folder, sync_ymd_partition):
+    hdfs_filepath = hdfs_destination_path
+    if streams_in_separate_folder:
+        hdfs_filepath = os.path.join(hdfs_filepath, current_stream_name)
+    if sync_ymd_partition:
+        hdfs_filepath = os.path.join(hdfs_filepath, f"synced_ymd={sync_ymd_partition}")
+    return hdfs_filepath
