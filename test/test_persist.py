@@ -156,4 +156,4 @@ class TestPersist(TestCase):
                 pa.field("str", pa.string(), True)
             ])
             for field in expected_schema:
-                self.assertEquals(schema.field(field.name).type, field.type)
+                self.assertEqual(schema.field(field.name).type, field.type)

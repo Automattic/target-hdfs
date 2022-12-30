@@ -19,4 +19,5 @@ setup(name='target-hdfs',
           [console_scripts]
           target-hdfs=target_hdfs:main
       ''',
+      packages=["target_hdfs"],
 )
