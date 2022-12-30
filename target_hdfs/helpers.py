@@ -215,7 +215,7 @@ def write_file_to_hdfs(
                                        sync_ymd_partition)
     create_hdfs_dir(hdfs_filepath)
 
-    LOGGER.debug(f"Writing files from {current_stream_name} stream to HDFS {hdfs_filepath}")
+    LOGGER.info(f"Writing files from {current_stream_name} stream to HDFS {hdfs_filepath}")
     with tempfile.NamedTemporaryFile("wb") as tmp_file:
         ParquetWriter(tmp_file.name, dataframes[current_stream_name].schema,
                       compression=compression_method).write_table(dataframes[current_stream_name])
