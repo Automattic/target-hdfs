@@ -74,6 +74,7 @@ def persist_messages(messages,
             filename_separator = os.path.sep
         LOGGER.info(f"Files will be save in HDFS path: {hdfs_destination_path}")
         create_hdfs_dir(hdfs_destination_path)
+        LOGGER.info(f"Files will be save in HDFS path: {hdfs_destination_path}")
         ## End of Static information shared among processes
 
         # Object that signals shutdown
