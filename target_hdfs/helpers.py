@@ -155,18 +155,14 @@ def flatten_schema_to_pyarrow_schema(flatten_schema_dictionary) -> pa.Schema:
     )
 
 
-def create_dataframe(list_dict: List[Dict], schema: Dict):
+def create_dataframe(list_dict: List[Dict], schema: pa.Schema):
     """"Create a pyarrow Table from a python list of dict"""
-    fields = set()
-    for d in list_dict:
-        fields = fields.union(d.keys())
-    data = {f: [row.get(f) for row in list_dict] for f in schema.keys()}
-    dataframe = pa.table(data).cast(flatten_schema_to_pyarrow_schema(schema))
-    return dataframe
+    data = {f: [row.get(f) for row in list_dict] for f in schema.names}
+    return pa.table(data).cast(schema)
 
 
 def concat_tables(current_stream_name: str, dataframes: Dict[str, pa.Table],
-                  records: Dict[str, List[Dict]], schema: Dict):
+                  records: Dict[str, List[Dict]], schema: pa.Schema):
     """Create a dataframe from records and concatenate with the existing one"""
     dataframe = create_dataframe(records.pop(current_stream_name), schema)
     if current_stream_name not in dataframes:

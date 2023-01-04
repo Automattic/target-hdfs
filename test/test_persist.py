@@ -155,3 +155,20 @@ class TestPersist(TestCase):
             ])
             for field in expected_schema:
                 self.assertEqual(schema.field(field.name).type, field.type)
+
+    def test_rows_per_file(self):
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            persist_messages(self.generate_input_message(INPUT_MESSAGE_1 * 10000), f"{tmpdirname}", rows_per_file=1000)
+            filename = [f for f in glob.glob(f"{tmpdirname}/*.parquet")]
+            self.assertEqual(len(filename), 30)
+            df = ParquetFile(filename[0]).read().to_pandas()
+            self.assertEqual(len(df), 1000)
+
+    def test_file_size(self):
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            persist_messages(self.generate_input_message(INPUT_MESSAGE_1 * 50000), f"{tmpdirname}", file_size_mb=1)
+            filename = [f for f in glob.glob(f"{tmpdirname}/*.parquet")]
+            self.assertEqual(len(filename), 10)
+            df = ParquetFile(filename[0]).read()
+            self.assertAlmostEqual(df.nbytes / (1024 * 1024), 1, 1)
+

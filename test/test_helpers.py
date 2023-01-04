@@ -162,19 +162,12 @@ class TestHelpers(TestCase):
     def test_create_dataframe(self):
         input_data = [{
             "key_1": 1,
-            "key_2__key_3": 2,
             "key_2__key_4__key_5": 3,
+            "key_2__key_3": 2,
             "key_2__key_4__key_6": "['10', '11']",
         }]
 
-        schema = {
-            "key_1": "integer",
-            "key_2__key_3": ["null", "string"],
-            "key_2__key_4__key_5": ["null", "integer"],
-            "key_2__key_4__key_6": "string"
-        }
-
-        expected_schema = pa.schema([
+        schema = pa.schema([
             pa.field("key_1", pa.int64(), False),
             pa.field("key_2__key_4__key_6", pa.string(), False),
             pa.field("key_2__key_3", pa.string(), True),
@@ -182,7 +175,7 @@ class TestHelpers(TestCase):
         ])
 
         df = create_dataframe(input_data, schema)
-        self.assertEqual(sorted(df.column_names), sorted(expected_schema.names))
-        for field in expected_schema:
+        self.assertEqual(sorted(df.column_names), sorted(schema.names))
+        for field in schema:
             self.assertEqual(df.schema.field(field.name).type, field.type)
         self.assertEqual(df.num_rows, 1)

@@ -11,7 +11,7 @@ from typing import Tuple
 import singer
 from jsonschema.validators import Draft4Validator
 
-from .helpers import flatten, flatten_schema, concat_tables, write_file_to_hdfs
+from .helpers import flatten, flatten_schema, concat_tables, write_file_to_hdfs, flatten_schema_to_pyarrow_schema
 
 _all__ = ["main"]
 
@@ -148,7 +148,7 @@ def persist_messages(messages,
                     if (rows_per_file > 0) and (not records_count[current_stream_name] % rows_per_file):
                         files_created.append(write_file(current_stream_name, dataframes, records, schemas))
                 elif message_type == MessageType.SCHEMA:
-                    schemas[stream_name] = record
+                    schemas[stream_name] = flatten_schema_to_pyarrow_schema(record)
                 elif message_type == MessageType.EOF:
                     files_created.append(
                         write_file(current_stream_name, dataframes, records, schemas[current_stream_name]))
