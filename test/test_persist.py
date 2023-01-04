@@ -107,8 +107,6 @@ EXPECTED_DF_3 = pd.DataFrame(
 class TestPersist(TestCase):
     def setUp(self):
         """Mocking HDFS methods to run local tests"""
-        patch('target_hdfs.create_hdfs_dir').start()
-        patch('target_hdfs.helpers.create_hdfs_dir').start()
         self.upload_to_hdfs_patcher = patch('target_hdfs.helpers.upload_to_hdfs')
         self.mock_upload_to_hdfs = self.upload_to_hdfs_patcher.start()
         self.mock_upload_to_hdfs.side_effect = lambda local, destination: shutil.copy(local.name, destination)

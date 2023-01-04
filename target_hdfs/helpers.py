@@ -177,13 +177,6 @@ def concat_tables(current_stream_name: str, dataframes: Dict[str, pa.Table],
                  f'{dataframes[current_stream_name].nbytes / 1024 / 1024} MB | '
                  f'{dataframes[current_stream_name].num_rows} rows')
 
-
-def create_hdfs_dir(hdfs_path):
-    """Create HDFS Path"""
-    LOGGER.info(f"Creating hdfs {hdfs_path} path")
-    pa.fs.HadoopFileSystem('default').create_dir(hdfs_path)
-
-
 def upload_to_hdfs(local_file, destination_path_hdfs) -> None:
     """Upload a local file to HDFS using RPC"""
     pa.fs.copy_files(
@@ -214,13 +207,13 @@ def write_file_to_hdfs(
 
     hdfs_filepath = generate_hdfs_path(current_stream_name, hdfs_destination_path, streams_in_separate_folder,
                                        sync_ymd_partition)
-    # create_hdfs_dir(hdfs_filepath)
 
     LOGGER.info(f"Writing files from {current_stream_name} stream to HDFS {hdfs_filepath}")
     with tempfile.NamedTemporaryFile("wb") as tmp_file:
         ParquetWriter(tmp_file.name, dataframes[current_stream_name].schema,
                       compression=compression_method).write_table(dataframes[current_stream_name])
-        filename = f"{current_stream_name}{filename_separator}{timestamp}{compression_extension}.parquet"
+        filename = f"{current_stream_name + filename_separator if streams_in_separate_folder else ''}" \
+                   f"{timestamp}{compression_extension}.parquet"
         upload_to_hdfs(tmp_file.name, os.path.join(hdfs_filepath, filename))
 
     # explicit memory management. This can be usefull when working on very large data groups

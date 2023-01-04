@@ -11,7 +11,7 @@ from typing import Tuple
 import singer
 from jsonschema.validators import Draft4Validator
 
-from .helpers import flatten, flatten_schema, concat_tables, write_file_to_hdfs, create_hdfs_dir\
+from .helpers import flatten, flatten_schema, concat_tables, write_file_to_hdfs
 
 _all__ = ["main"]
 
