@@ -215,7 +215,7 @@ def write_file_to_hdfs(
 
     hdfs_filepath = generate_hdfs_path(current_stream_name, hdfs_destination_path, streams_in_separate_folder,
                                        sync_ymd_partition)
-    create_hdfs_dir(hdfs_filepath)
+    # create_hdfs_dir(hdfs_filepath)
 
     LOGGER.info(f"Writing files from {current_stream_name} stream to HDFS {hdfs_filepath}")
     with tempfile.NamedTemporaryFile("wb") as tmp_file:
