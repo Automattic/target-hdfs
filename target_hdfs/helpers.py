@@ -181,8 +181,7 @@ def concat_tables(current_stream_name: str, dataframes: Dict[str, pa.Table],
 def create_hdfs_dir(hdfs_path):
     """Create HDFS Path"""
     LOGGER.info(f"Creating hdfs {hdfs_path} path")
-    with pa.fs.HadoopFileSystem('default') as hdfs:
-        hdfs.create_dir(hdfs_path)
+    pa.fs.HadoopFileSystem('default').create_dir(hdfs_path)
 
 
 def upload_to_hdfs(local_file, destination_path_hdfs) -> None:
