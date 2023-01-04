@@ -131,7 +131,7 @@ def _field_type_to_pyarrow_field(field_name: str, input_types: Union[List[str], 
     return pa.field(field_name, pyarrow_type, nullable)
 
 
-def flatten_schema_to_pyarrow_schema(flatten_schema_dictionary, fields_ordered) -> pa.Schema:
+def flatten_schema_to_pyarrow_schema(flatten_schema_dictionary) -> pa.Schema:
     """Function that converts a flatten schema to a pyarrow schema in a defined order
     E.g:
      dictionary = {
@@ -150,8 +150,8 @@ def flatten_schema_to_pyarrow_schema(flatten_schema_dictionary, fields_ordered) 
     """
     flatten_schema_dictionary = flatten_schema_dictionary or {}
     return pa.schema(
-        [_field_type_to_pyarrow_field(field_name, flatten_schema_dictionary[field_name])
-         for field_name in fields_ordered if field_name in flatten_schema_dictionary]
+        [_field_type_to_pyarrow_field(field_name, field_datatype)
+         for field_name, field_datatype in flatten_schema_dictionary.items()]
     )
 
 
@@ -160,8 +160,8 @@ def create_dataframe(list_dict: List[Dict], schema: Dict):
     fields = set()
     for d in list_dict:
         fields = fields.union(d.keys())
-    data = {f: [row.get(f) for row in list_dict] for f in fields}
-    dataframe = pa.table(data).cast(flatten_schema_to_pyarrow_schema(schema, list(fields)))
+    data = {f: [row.get(f) for row in list_dict] for f in schema.keys()}
+    dataframe = pa.table(data).cast(flatten_schema_to_pyarrow_schema(schema))
     return dataframe
 
 
