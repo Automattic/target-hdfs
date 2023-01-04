@@ -146,27 +146,15 @@ class TestHelpers(TestCase):
             pa.field("email_list", pa.string(), True),
             pa.field("external_created_at", pa.int64(), True),
             pa.field("page_views_count", pa.int64(), False),
-            pa.field("page_views_avg", pa.float64(), True),
             pa.field("only_null_datatype", pa.string(), True),
+            pa.field("page_views_avg", pa.float64(), True),
         ])
-        result = flatten_schema_to_pyarrow_schema(in_dict, [
-            "id",
-            "created_at",
-            "updated_at",
-            "email",
-            "email_list",
-            "external_created_at",
-            "page_views_count",
-            "page_views_avg",
-            "only_null_datatype"
-        ])
+        result = flatten_schema_to_pyarrow_schema(in_dict)
 
         self.assertEqual(expected, result)
 
     def test_flatten_schema_to_pyarrow_schema_type_not_defined(self):
-        in_dict = {
-            "created_at": "new-type",
-        }
+        in_dict = {"created_at": "new-type"}
 
         with self.assertRaises(NotImplementedError):
             flatten_schema_to_pyarrow_schema(in_dict)

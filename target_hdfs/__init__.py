@@ -60,6 +60,7 @@ def persist_messages(messages,
                      compression_method=None,
                      streams_in_separate_folder=False,
                      sync_ymd_partition=None,
+                     rows_per_file=-1,
                      file_size_mb=-1):
         ## Static information shared among processes
         schemas = {}
@@ -144,6 +145,8 @@ def persist_messages(messages,
                                 (dataframes[current_stream_name].nbytes / (1024 * 1024) >= file_size_mb):
                             files_created.append(
                                 write_file(current_stream_name, dataframes, records, schemas[current_stream_name]))
+                    if (rows_per_file > 0) and (not records_count[current_stream_name] % rows_per_file):
+                        files_created.append(write_file(current_stream_name, dataframes, records, schemas))
                 elif message_type == MessageType.SCHEMA:
                     schemas[stream_name] = record
                 elif message_type == MessageType.EOF:
@@ -185,6 +188,7 @@ def main():
         compression_method=config.get("compression_method", "gzip"),
         streams_in_separate_folder=config.get("streams_in_separate_folder", True),
         file_size_mb=config.get("file_size_mb", -1),
+        rows_per_file=config.get("rows_per_file", -1),
         sync_ymd_partition=config.get("sync_ymd_partition")
     )
 

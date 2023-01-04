@@ -2,6 +2,7 @@
   "hdfs_destination_path": "/path/to/the/output/directory/",
   "compression_method": "gzip",
   "streams_in_separate_folder": true,
-  "file_size_mb": 500,
+  "rows_per_file": -1,
+  "file_size_mb": -1,
   "sync_ymd_partition": "20220101"
 }

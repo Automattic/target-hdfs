@@ -109,7 +109,7 @@ class TestPersist(TestCase):
         """Mocking HDFS methods to run local tests"""
         self.upload_to_hdfs_patcher = patch('target_hdfs.helpers.upload_to_hdfs')
         self.mock_upload_to_hdfs = self.upload_to_hdfs_patcher.start()
-        self.mock_upload_to_hdfs.side_effect = lambda local, destination: shutil.copy(local.name, destination)
+        self.mock_upload_to_hdfs.side_effect = lambda local, destination: shutil.copy(local, destination)
 
     @staticmethod
     def generate_input_message(message):
