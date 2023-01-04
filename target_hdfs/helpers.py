@@ -177,6 +177,7 @@ def concat_tables(current_stream_name: str, dataframes: Dict[str, pa.Table],
                  f'{dataframes[current_stream_name].nbytes / 1024 / 1024} MB | '
                  f'{dataframes[current_stream_name].num_rows} rows')
 
+
 def upload_to_hdfs(local_file, destination_path_hdfs) -> None:
     """Upload a local file to HDFS using RPC"""
     pa.fs.copy_files(
