@@ -6,7 +6,6 @@ from typing import List, Union, MutableMapping, Dict
 
 import pyarrow as pa
 import singer
-from pyarrow._hdfs import HadoopFileSystem
 from pyarrow.parquet import ParquetWriter
 
 LOGGER = singer.get_logger()
@@ -179,24 +178,23 @@ def concat_tables(current_stream_name: str, dataframes: Dict[str, pa.Table],
                  f'{dataframes[current_stream_name].num_rows} rows')
 
 
-def create_hdfs_dir(hdfs: HadoopFileSystem, hdfs_path):
+def create_hdfs_dir(hdfs_path):
     """Create HDFS Path"""
     LOGGER.info(f"Creating hdfs {hdfs_path} path")
-    hdfs.create_dir(hdfs_path)
+    pa.fs.HadoopFileSystem('default').create_dir(hdfs_path)
 
 
-def upload_to_hdfs(hdfs: HadoopFileSystem, local_file, destination_path_hdfs) -> None:
+def upload_to_hdfs(local_file, destination_path_hdfs) -> None:
     """Upload a local file to HDFS using RPC"""
     pa.fs.copy_files(
         local_file,
         destination_path_hdfs,
         source_filesystem=pa.fs.LocalFileSystem(),
-        destination_filesystem=hdfs
+        destination_filesystem=pa.fs.HadoopFileSystem('default')
     )
 
 
 def write_file_to_hdfs(
-        hdfs: HadoopFileSystem,
         current_stream_name,
         dataframes,
         records,
@@ -216,14 +214,14 @@ def write_file_to_hdfs(
 
     hdfs_filepath = generate_hdfs_path(current_stream_name, hdfs_destination_path, streams_in_separate_folder,
                                        sync_ymd_partition)
-    create_hdfs_dir(hdfs, hdfs_filepath)
+    create_hdfs_dir(hdfs_filepath)
 
     LOGGER.info(f"Writing files from {current_stream_name} stream to HDFS {hdfs_filepath}")
     with tempfile.NamedTemporaryFile("wb") as tmp_file:
         ParquetWriter(tmp_file.name, dataframes[current_stream_name].schema,
                       compression=compression_method).write_table(dataframes[current_stream_name])
         filename = f"{current_stream_name}{filename_separator}{timestamp}{compression_extension}.parquet"
-        upload_to_hdfs(hdfs, tmp_file, os.path.join(hdfs_filepath, filename))
+        upload_to_hdfs(tmp_file, os.path.join(hdfs_filepath, filename))
 
     # explicit memory management. This can be usefull when working on very large data groups
     del dataframes[current_stream_name]
