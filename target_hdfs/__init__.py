@@ -139,7 +139,7 @@ def persist_messages(messages,
                     records_count[stream_name] += 1
                     # Update the pyarrow table on every 1000 records
                     if len(records[current_stream_name]) % 1000 == 0:
-                        concat_tables(current_stream_name, dataframes, records, schemas)
+                        concat_tables(current_stream_name, dataframes, records, schemas[current_stream_name])
                     if (file_size_mb > 0) and (dataframes[current_stream_name].nbytes / (1024 * 1024) >= file_size_mb):
                         files_created.append(
                             write_file(current_stream_name, dataframes, records, schemas[current_stream_name]))
