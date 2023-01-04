@@ -9,10 +9,9 @@ import singer
 from pyarrow.parquet import ParquetWriter
 
 LOGGER = singer.get_logger()
-LOGGER.setLevel(os.getenv("LOGGER_LEVEL", "INFO"))
 
 
-def flatten(dictionary, flat_schema, parent_key="", sep="__"):
+def flatten(dictionary, flat_schema, parent_key='', sep='__'):
     """Function that flattens a nested structure, using the separator given as parameter, or uses '__' as default
     E.g:
      dictionary =  {
@@ -50,13 +49,12 @@ def flatten(dictionary, flat_schema, parent_key="", sep="__"):
             new_key = parent_key + sep + key if parent_key else key
             if isinstance(value, MutableMapping):
                 items.update(flatten(value, flat_schema, new_key, sep=sep))
-            else:
-                if new_key in flat_schema:
-                    items[new_key] = str(value) if isinstance(value, list) else value
+            elif new_key in flat_schema:
+                items[new_key] = str(value) if isinstance(value, list) else value
     return items
 
 
-def flatten_schema(dictionary, parent_key="", sep="__"):
+def flatten_schema(dictionary, parent_key='', sep='__'):
     """Function that flattens a nested structure, using the separater given as parameter, or uses '__' as default
     E.g:
      dictionary =  {
@@ -96,22 +94,22 @@ def flatten_schema(dictionary, parent_key="", sep="__"):
     if dictionary:
         for key, value in dictionary.items():
             new_key = parent_key + sep + key if parent_key else key
-            if "type" not in value:
-                LOGGER.warning(f"SCHEMA with limited support on field {key}: {value}")
-            if "object" in value.get("type", []):
-                items.update(flatten_schema(value.get("properties"), new_key, sep=sep))
+            if 'type' not in value:
+                LOGGER.warning(f'SCHEMA with limited support on field {key}: {value}')
+            if 'object' in value.get('type', []):
+                items.update(flatten_schema(value.get('properties'), new_key, sep=sep))
             else:
-                items[new_key] = value.get("type", None)
+                items[new_key] = value.get('type', None)
     return items
 
 
 FIELD_TYPE_TO_PYARROW = {
-    "BOOLEAN": pa.bool_(),
-    "STRING": pa.string(),
-    "ARRAY": pa.string(),
-    "": pa.string(),  # string type will be considered as default
-    "INTEGER": pa.int64(),
-    "NUMBER": pa.float64()
+    'BOOLEAN': pa.bool_(),
+    'STRING': pa.string(),
+    'ARRAY': pa.string(),
+    '': pa.string(),  # string type will be considered as default
+    'INTEGER': pa.int64(),
+    'NUMBER': pa.float64()
 }
 
 
@@ -120,9 +118,9 @@ def _field_type_to_pyarrow_field(field_name: str, input_types: Union[List[str], 
     if isinstance(input_types, str):
         input_types = [input_types]
     types_uppercase = {item.upper() for item in input_types}
-    nullable = "NULL" in types_uppercase
-    types_uppercase.discard("NULL")
-    input_type = list(types_uppercase)[0] if types_uppercase else ""
+    nullable = 'NULL' in types_uppercase
+    types_uppercase.discard('NULL')
+    input_type = list(types_uppercase)[0] if types_uppercase else ''
     pyarrow_type = FIELD_TYPE_TO_PYARROW.get(input_type, None)
 
     if not pyarrow_type:
@@ -169,7 +167,7 @@ def concat_tables(current_stream_name: str, dataframes: Dict[str, pa.Table],
         dataframes[current_stream_name] = dataframe
     else:
         dataframes[current_stream_name] = pa.concat_tables([dataframes[current_stream_name], dataframe])
-    LOGGER.info(f'Database[{current_stream_name}] size: '
+    LOGGER.debug(f'Database[{current_stream_name}] size: '
                  f'{dataframes[current_stream_name].nbytes / 1024 / 1024} MB | '
                  f'{dataframes[current_stream_name].num_rows} rows')
 
@@ -184,40 +182,30 @@ def upload_to_hdfs(local_file, destination_path_hdfs) -> None:
     )
 
 
-def write_file_to_hdfs(
-        current_stream_name,
-        dataframes,
-        records,
-        schema,
-        hdfs_destination_path,
-        compression_extension,
-        compression_method,
-        filename_separator='-',
-        sync_ymd_partition=None,
-        streams_in_separate_folder=True
-):
-    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S-%f")
+def write_file_to_hdfs(current_stream_name, dataframes, records, schema, config, files_created_list):
+    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S-%f')
 
     # Converting the last records to pyarrow table
     if records[current_stream_name]:
         concat_tables(current_stream_name, dataframes, records, schema)
 
-    hdfs_filepath = generate_hdfs_path(current_stream_name, hdfs_destination_path, streams_in_separate_folder,
-                                       sync_ymd_partition)
+    if current_stream_name in dataframes:
+        hdfs_path = generate_hdfs_path(current_stream_name, config.hdfs_destination_path,
+                                           config.streams_in_separate_folder, config.sync_ymd_partition)
 
-    LOGGER.info(f"Writing files from {current_stream_name} stream to HDFS {hdfs_filepath}")
-    with tempfile.NamedTemporaryFile("wb") as tmp_file:
-        ParquetWriter(tmp_file.name, dataframes[current_stream_name].schema,
-                      compression=compression_method).write_table(dataframes[current_stream_name])
-        filename = f"{current_stream_name + filename_separator if not streams_in_separate_folder else ''}" \
-                   f"{timestamp}{compression_extension}.parquet"
-        upload_to_hdfs(tmp_file.name, os.path.join(hdfs_filepath, filename))
+        with tempfile.NamedTemporaryFile('wb') as tmp_file:
+            ParquetWriter(tmp_file.name, dataframes[current_stream_name].schema,
+                          compression=config.compression_method).write_table(dataframes[current_stream_name])
+            filename = f'{timestamp}{config.compression_extension}.parquet'
+            if not config.streams_in_separate_folder:
+                filename = f'{current_stream_name}{config.filename_separator}{filename}'
+            hdfs_file_path = os.path.join(hdfs_path, filename)
+            upload_to_hdfs(tmp_file.name, hdfs_file_path)
+            files_created_list.append(hdfs_file_path)
 
-    # explicit memory management. This can be useful when working on very large data groups
-    del dataframes[current_stream_name]
-    gc.collect()
-
-    return hdfs_filepath
+        # explicit memory management. This can be useful when working on very large data groups
+        del dataframes[current_stream_name]
+        gc.collect()
 
 
 def generate_hdfs_path(current_stream_name, hdfs_destination_path, streams_in_separate_folder, sync_ymd_partition):
@@ -225,5 +213,5 @@ def generate_hdfs_path(current_stream_name, hdfs_destination_path, streams_in_se
     if streams_in_separate_folder:
         hdfs_filepath = os.path.join(hdfs_filepath, current_stream_name)
     if sync_ymd_partition:
-        hdfs_filepath = os.path.join(hdfs_filepath, f"synced_ymd={sync_ymd_partition}")
+        hdfs_filepath = os.path.join(hdfs_filepath, f'synced_ymd={sync_ymd_partition}')
     return hdfs_filepath

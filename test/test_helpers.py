@@ -5,8 +5,7 @@ import logging
 
 import pytest
 
-from target_hdfs.helpers import flatten, flatten_schema, flatten_schema_to_pyarrow_schema, create_dataframe, \
-    concat_tables
+from target_hdfs.helpers import flatten, flatten_schema, flatten_schema_to_pyarrow_schema, create_dataframe
 
 
 class TestHelpers(TestCase):

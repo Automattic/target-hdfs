@@ -14,7 +14,7 @@ setup(name='target-hdfs',
           "singer-python>=5.13.0<6.0.0",
           "pyarrow>=10.0.1<11.0.0"
       ],
-      extras_require={"dev": ["pytest==7.2.0", "pandas==1.5.2"]},
+      extras_require={"dev": ["pytest<8.0.0", "pandas<2.0.0", "pylint<3.0.0", "pylint-quotes<1.0.0"]},
       entry_points='''
           [console_scripts]
           target-hdfs=target_hdfs:main
