@@ -132,7 +132,8 @@ def persist_messages(messages,
                 (message_type, stream_name, record) = receiver.get()  # q.get()
                 if message_type == MessageType.RECORD:
                     if stream_name != current_stream_name and current_stream_name is not None:
-                        files_created.append(write_file(current_stream_name, dataframes, records, schemas))
+                        files_created.append(
+                            write_file(current_stream_name, dataframes, records, schemas[current_stream_name]))
                     current_stream_name = stream_name
                     records[stream_name].append(record)
                     records_count[stream_name] += 1
@@ -140,20 +141,22 @@ def persist_messages(messages,
                     if len(records[current_stream_name]) % 1000 == 0:
                         concat_tables(current_stream_name, dataframes, records, schemas)
                     if (file_size_mb > 0) and (dataframes[current_stream_name].nbytes / (1024 * 1024) >= file_size_mb):
-                        files_created.append(write_file(current_stream_name, dataframes, records, schemas))
+                        files_created.append(
+                            write_file(current_stream_name, dataframes, records, schemas[current_stream_name]))
                 elif message_type == MessageType.SCHEMA:
                     schemas[stream_name] = record
                 elif message_type == MessageType.EOF:
-                    files_created.append(write_file(current_stream_name, dataframes, records, schemas))
+                    files_created.append(
+                        write_file(current_stream_name, dataframes, records, schemas[current_stream_name]))
                     LOGGER.info(f"Wrote {len(files_created)} files")
                     LOGGER.debug(f"Wrote {files_created} files")
                     break
 
-        def write_file(current_stream_name, dataframes, records, schemas):
+        def write_file(current_stream_name, dataframes, records, current_stream_schema):
             write_file_to_hdfs(current_stream_name,
                                dataframes,
                                records,
-                               schemas[current_stream_name],
+                               current_stream_schema,
                                hdfs_destination_path,
                                compression_extension,
                                compression_method,

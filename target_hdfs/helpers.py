@@ -150,8 +150,8 @@ def flatten_schema_to_pyarrow_schema(flatten_schema_dictionary) -> pa.Schema:
     """
     flatten_schema_dictionary = flatten_schema_dictionary or {}
     return pa.schema(
-        [_field_type_to_pyarrow_field(field_name, field_datatype)
-         for field_name, field_datatype in flatten_schema_dictionary.items()]
+        [_field_type_to_pyarrow_field(field_name, field_input_types)
+         for field_name, field_input_types in flatten_schema_dictionary.items()]
     )
 
 
