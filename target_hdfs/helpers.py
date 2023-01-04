@@ -221,7 +221,7 @@ def write_file_to_hdfs(
         ParquetWriter(tmp_file.name, dataframes[current_stream_name].schema,
                       compression=compression_method).write_table(dataframes[current_stream_name])
         filename = f"{current_stream_name}{filename_separator}{timestamp}{compression_extension}.parquet"
-        upload_to_hdfs(tmp_file, os.path.join(hdfs_filepath, filename))
+        upload_to_hdfs(tmp_file.name, os.path.join(hdfs_filepath, filename))
 
     # explicit memory management. This can be usefull when working on very large data groups
     del dataframes[current_stream_name]
