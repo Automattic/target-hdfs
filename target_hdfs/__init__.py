@@ -11,6 +11,7 @@ from typing import Tuple
 import singer
 from jsonschema.validators import Draft4Validator
 
+from target_hdfs.hdfs_client import HDFSClient
 from .helpers import flatten, flatten_schema, concat_tables, write_file_to_hdfs, create_hdfs_dir\
 
 _all__ = ["main"]
@@ -65,6 +66,7 @@ def persist_messages(messages,
         schemas = {}
         key_properties = {}
         validators = {}
+        hdfs = HDFSClient()
 
         compression_extension, compression_method = get_compression_extension(compression_method)
 
@@ -73,7 +75,7 @@ def persist_messages(messages,
             LOGGER.info("Writing streams in separate folders")
             filename_separator = os.path.sep
         LOGGER.info(f"Files will be save in HDFS path: {hdfs_destination_path}")
-        create_hdfs_dir(hdfs_destination_path)
+        hdfs.create_hdfs_dir(hdfs_destination_path)
         LOGGER.info(f"Files will be save in HDFS path: {hdfs_destination_path}")
         ## End of Static information shared among processes
 
@@ -151,7 +153,8 @@ def persist_messages(messages,
                     break
 
         def write_file(current_stream_name, dataframes, records, schemas):
-            write_file_to_hdfs(current_stream_name,
+            write_file_to_hdfs(hdfs,
+                               current_stream_name,
                                dataframes,
                                records,
                                schemas[current_stream_name],
