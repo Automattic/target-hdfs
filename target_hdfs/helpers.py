@@ -151,7 +151,7 @@ def flatten_schema_to_pyarrow_schema(flatten_schema_dictionary, fields_ordered) 
     flatten_schema_dictionary = flatten_schema_dictionary or {}
     return pa.schema(
         [_field_type_to_pyarrow_field(field_name, flatten_schema_dictionary[field_name])
-         for field_name in fields_ordered]
+         for field_name in fields_ordered if field_name in flatten_schema_dictionary]
     )
 
 
