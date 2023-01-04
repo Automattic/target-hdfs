@@ -169,7 +169,7 @@ class TestHelpers(TestCase):
         }
 
         with self.assertRaises(NotImplementedError):
-            flatten_schema_to_pyarrow_schema(in_dict, ["created_at"])
+            flatten_schema_to_pyarrow_schema(in_dict)
 
     def test_create_dataframe(self):
         input_data = [{
