@@ -13,7 +13,7 @@ LOGGER.setLevel(os.getenv("LOGGER_LEVEL", "INFO"))
 
 
 def flatten(dictionary, flat_schema, parent_key="", sep="__"):
-    """Function that flattens a nested structure, using the separater given as parameter, or uses '__' as default
+    """Function that flattens a nested structure, using the separator given as parameter, or uses '__' as default
     E.g:
      dictionary =  {
                         'key_1': 1,
@@ -169,7 +169,7 @@ def concat_tables(current_stream_name: str, dataframes: Dict[str, pa.Table],
         dataframes[current_stream_name] = dataframe
     else:
         dataframes[current_stream_name] = pa.concat_tables([dataframes[current_stream_name], dataframe])
-    LOGGER.debug(f'Database[{current_stream_name}] size: '
+    LOGGER.info(f'Database[{current_stream_name}] size: '
                  f'{dataframes[current_stream_name].nbytes / 1024 / 1024} MB | '
                  f'{dataframes[current_stream_name].num_rows} rows')
 
@@ -213,7 +213,7 @@ def write_file_to_hdfs(
                    f"{timestamp}{compression_extension}.parquet"
         upload_to_hdfs(tmp_file.name, os.path.join(hdfs_filepath, filename))
 
-    # explicit memory management. This can be usefull when working on very large data groups
+    # explicit memory management. This can be useful when working on very large data groups
     del dataframes[current_stream_name]
     gc.collect()
 
