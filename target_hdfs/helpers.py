@@ -173,7 +173,7 @@ def concat_tables(current_stream_name: str, dataframes: Dict[str, pa.Table],
         dataframes[current_stream_name] = dataframe
     else:
         dataframes[current_stream_name] = pa.concat_tables([dataframes[current_stream_name], dataframe])
-    LOGGER.debug(f'Database[{current_stream_name}] size: '
+    LOGGER.info(f'Database[{current_stream_name}] size: '
                  f'{dataframes[current_stream_name].nbytes / 1024 / 1024} MB | '
                  f'{dataframes[current_stream_name].num_rows} rows')
 
