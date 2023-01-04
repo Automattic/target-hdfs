@@ -212,7 +212,7 @@ def write_file_to_hdfs(
     with tempfile.NamedTemporaryFile("wb") as tmp_file:
         ParquetWriter(tmp_file.name, dataframes[current_stream_name].schema,
                       compression=compression_method).write_table(dataframes[current_stream_name])
-        filename = f"{current_stream_name + filename_separator if streams_in_separate_folder else ''}" \
+        filename = f"{current_stream_name + filename_separator if not streams_in_separate_folder else ''}" \
                    f"{timestamp}{compression_extension}.parquet"
         upload_to_hdfs(tmp_file.name, os.path.join(hdfs_filepath, filename))
 
