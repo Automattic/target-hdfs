@@ -36,7 +36,7 @@ class TargetConfig:
     compression_method: str = 'gzip'
     compression_extension: str = ''
     streams_in_separate_folder: bool = True
-    sync_ymd_partition: str = None
+    partitions: str = None
     rows_per_file: int = -1
     file_size_mb: int = -1
     filename_separator: str = '-'
@@ -180,7 +180,7 @@ def main():
             streams_in_separate_folder=config.get('streams_in_separate_folder', True),
             file_size_mb=config.get('file_size_mb', -1),
             rows_per_file=config.get('rows_per_file', -1),
-            sync_ymd_partition=config.get('sync_ymd_partition')
+            partitions=config.get('partitions')
         )
     )
 

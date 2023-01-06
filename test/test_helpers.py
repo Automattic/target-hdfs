@@ -5,7 +5,8 @@ import logging
 
 import pytest
 
-from target_hdfs.helpers import flatten, flatten_schema, flatten_schema_to_pyarrow_schema, create_dataframe
+from target_hdfs.helpers import flatten, flatten_schema, flatten_schema_to_pyarrow_schema, create_dataframe, \
+    generate_hdfs_path
 
 
 class TestHelpers(TestCase):
@@ -178,3 +179,11 @@ class TestHelpers(TestCase):
         for field in schema:
             self.assertEqual(df.schema.field(field.name).type, field.type)
         self.assertEqual(df.num_rows, 1)
+
+    def test_generate_hdfs_path(self):
+        self.assertEqual('/path/1/my_stream', generate_hdfs_path('my_stream', '/path/1/', True, None))
+        self.assertEqual('/path/2/', generate_hdfs_path('my_stream', '/path/2/', False, None))
+        self.assertEqual('/path/3/my_stream/my_partition=123',
+                         generate_hdfs_path('my_stream', '/path/3/', True, 'my_partition=123'))
+        self.assertEqual('/path/3/my_partition1=1/my_partition2=2',
+                         generate_hdfs_path('my_stream', '/path/3/', False, 'my_partition1=1/my_partition2=2'))

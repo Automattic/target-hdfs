@@ -174,7 +174,7 @@ def concat_tables(current_stream_name: str, dataframes: Dict[str, pa.Table],
 
 def upload_to_hdfs(local_file, destination_path_hdfs) -> None:
     """Upload a local file to HDFS using RPC"""
-    LOGGER.info(f'Uploading file to HDFS: {destination_path_hdfs} ')
+    LOGGER.debug(f'Uploading file to HDFS: {destination_path_hdfs} ')
     pa.fs.copy_files(
         local_file,
         destination_path_hdfs,
@@ -193,7 +193,7 @@ def write_file_to_hdfs(current_stream_name, dataframes, records, schema, config,
 
     if current_stream_name in dataframes:
         hdfs_path = generate_hdfs_path(current_stream_name, config.hdfs_destination_path,
-                                           config.streams_in_separate_folder, config.sync_ymd_partition)
+                                           config.streams_in_separate_folder, config.partitions)
 
         with tempfile.NamedTemporaryFile('wb') as tmp_file:
             ParquetWriter(tmp_file.name, dataframes[current_stream_name].schema,
@@ -210,10 +210,10 @@ def write_file_to_hdfs(current_stream_name, dataframes, records, schema, config,
         gc.collect()
 
 
-def generate_hdfs_path(current_stream_name, hdfs_destination_path, streams_in_separate_folder, sync_ymd_partition):
+def generate_hdfs_path(current_stream_name, hdfs_destination_path, streams_in_separate_folder, partitions):
     hdfs_filepath = hdfs_destination_path
     if streams_in_separate_folder:
         hdfs_filepath = os.path.join(hdfs_filepath, current_stream_name)
-    if sync_ymd_partition:
-        hdfs_filepath = os.path.join(hdfs_filepath, f'synced_ymd={sync_ymd_partition}')
+    if partitions:
+        hdfs_filepath = os.path.join(hdfs_filepath, partitions)
     return hdfs_filepath

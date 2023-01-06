@@ -4,5 +4,5 @@
   "streams_in_separate_folder": true,
   "rows_per_file": -1,
   "file_size_mb": -1,
-  "sync_ymd_partition": "20220101"
+  "partitions": "sync_ymd=20230101"
 }

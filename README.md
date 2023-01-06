@@ -51,7 +51,7 @@ For an example of the configuration file, see [config.sample.json](config.sample
 There is also an `streams_in_separate_folder` option to create each stream in a different folder, as these are expected to come in different schema.
 The `rows_per_file` and `file_size_mb` force a file to be saved every time the number of rows is reached or/and the pyarrow 
 dataframe size reach the file size (without the compression).
-The `sync_ymd_partition` is an option to save the data in a partition to identify the day when the sync happened.
+The `partitions` config is an option to save the data in one or more partitions (e.g. `sync_ymd=20230101` or `sync_year=2023/sync_month=01/sync_day=01`).
 To run `target-hdfs` with the configuration file, use this command:
 
 ```bash
