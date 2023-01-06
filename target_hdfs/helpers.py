@@ -174,12 +174,14 @@ def concat_tables(current_stream_name: str, dataframes: Dict[str, pa.Table],
 
 def upload_to_hdfs(local_file, destination_path_hdfs) -> None:
     """Upload a local file to HDFS using RPC"""
+    LOGGER.infor(f"Uploading file to HDFS: {destination_path_hdfs} ")
     pa.fs.copy_files(
         local_file,
         destination_path_hdfs,
         source_filesystem=pa.fs.LocalFileSystem(),
         destination_filesystem=pa.fs.HadoopFileSystem('default')
     )
+    LOGGER.infor(f"File {destination_path_hdfs} uploaded to HDFS")
 
 
 def write_file_to_hdfs(current_stream_name, dataframes, records, schema, config, files_created_list):
