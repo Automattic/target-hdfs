@@ -127,8 +127,9 @@ def persist_messages(messages, config: TargetConfig):
         records_count = defaultdict(int)
         dataframes = {}
         pyarrow_schemas = {}
+        more_messages = True
 
-        while True:
+        while more_messages:
             (message_type, stream_name, record) = receiver.get()
             if message_type == MessageType.RECORD:
                 if stream_name != current_stream_name and current_stream_name is not None:
@@ -149,7 +150,7 @@ def persist_messages(messages, config: TargetConfig):
                 write_file(current_stream_name, dataframes, records, pyarrow_schemas, files_created)
                 LOGGER.info(f'Wrote {len(files_created)} files')
                 LOGGER.debug(f'Wrote {files_created} files')
-                break
+                more_messages = False
 
     def write_file(current_stream_name, dataframes, records, pyarrow_schemas, files_created_list):
         write_file_to_hdfs(current_stream_name=current_stream_name,
