@@ -1,15 +1,24 @@
-from unittest import TestCase
+import json
+from datetime import datetime
+from unittest import TestCase, mock
 
-import pyarrow as pa
 import logging
+from unittest.mock import patch
 
+import avro
 import pytest
 
-from target_hdfs.helpers import flatten, flatten_schema, flatten_schema_to_pyarrow_schema, create_dataframe, \
-    generate_hdfs_path
+from target_hdfs import TargetConfig
+from target_hdfs.helpers import flatten, flatten_schema, flatten_schema_to_avro_schema
 
 
 class TestHelpers(TestCase):
+    def setUp(self):
+        """Mocking datetime"""
+        self.datetime_patcher = patch('target_hdfs.datetime')
+        self.mock_datetime = self.datetime_patcher.start()
+        self.mock_datetime.utcnow = mock.Mock(return_value=datetime(2023, 1, 1))
+
     @pytest.fixture(autouse=True)
     def inject_fixtures(self, caplog):
         self._caplog = caplog
@@ -92,98 +101,110 @@ class TestHelpers(TestCase):
         output = flatten_schema(in_dict)
         self.assertEqual(output, expected)
 
-    def test_flatten_schema_2(self):
+    def test_flatten_schema_with_anyOf(self):
         in_dict = {
-            "id": {"type": "integer"},
-            "created_at": {"type": "string", "format": "date-time"},
-            "updated_at": {"type": "string", "format": "date-time"},
-            "email": {"type": "string"},
-            "last_surveyed": {
+            "int": {"type": "integer"},
+            "string_date": {"type": "string", "format": "date-time"},
+            "string": {"type": "string"},
+            "anyOf": {
                 "anyOf": [{"type": "null"}, {"type": "string", "format": "date-time"}]
             },
-            "external_created_at": {"type": ["integer", "null"]},
-            "page_views_count": {"type": "integer"},
+            "int_null": {"type": ["null", "integer"]},
         }
 
         expected = {
-            "id": "integer",
-            "created_at": "string",
-            "updated_at": "string",
-            "email": "string",
-            "last_surveyed": None,
-            "external_created_at": ["integer", "null"],
-            "page_views_count": "integer",
+            "int": "integer",
+            "string_date": "string",
+            "string": "string",
+            "anyOf": ["null", "string"],
+            "int_null": ["null", "integer"],
+        }
+
+        output = flatten_schema(in_dict)
+        self.assertEqual(output, expected)
+
+    def test_flatten_schema_with_not_supported_type(self):
+        in_dict = {
+            "int": {"type": "integer"},
+            "wrong_type_structure": {
+                "wrong_type": {"type": ["null", "string"]}
+            },
+        }
+
+        expected = {
+            "int": "integer",
+            "wrong_type_structure": [],
         }
 
         with self._caplog.at_level(logging.WARNING):
             output = flatten_schema(in_dict)
             for record in self._caplog.records:
-                self.assertIn("SCHEMA with limited support on field last_surveyed", record.message)
+                self.assertIn("SCHEMA with limited support on field wrong_type_structure", record.message)
         self.assertEqual(output, expected)
 
     def test_flatten_schema_empty(self):
         in_dict = dict()
         self.assertEqual(dict(), flatten_schema(in_dict))
 
-    def test_flatten_schema_to_pyarrow_schema(self):
+    def test_flatten_schema_to_avro_schema(self):
         in_dict = {
-            "id": "integer",
-            "created_at": "string",
-            "updated_at": "string",
-            "email": "string",
-            "email_list": ["array", "null"],
-            "external_created_at": ["integer", "null"],
-            "page_views_count": "integer",
-            "only_null_datatype": ["null"],
-            "page_views_avg": ["number", "null"],
+            "int": "integer",
+            "string": "string",
+            "array_null": ["array", "null"],
+            "int_null": ["integer", "null"],
+            "null": ["null"],
+            "number_null": ["number", "null"],
         }
 
-        expected = pa.schema([
-            pa.field("id", pa.int64(), False),
-            pa.field("created_at", pa.string(), False),
-            pa.field("updated_at", pa.string(), False),
-            pa.field("email", pa.string(), False),
-            pa.field("email_list", pa.string(), True),
-            pa.field("external_created_at", pa.int64(), True),
-            pa.field("page_views_count", pa.int64(), False),
-            pa.field("only_null_datatype", pa.string(), True),
-            pa.field("page_views_avg", pa.float64(), True),
-        ])
-        result = flatten_schema_to_pyarrow_schema(in_dict)
+        expected = avro.schema.parse(json.dumps({
+            "namespace": "my_stream",
+            "type": "record",
+            "name": "my_stream",
+            "fields": [
+                {"name": "int", "type": 'int'},
+                {"name": "string",  "type": 'string'},
+                {"name": "array_null", "type": ['string', 'null']},
+                {"name": "int_null", "type": ['int', 'null']},
+                {"name": "null", "type": ['null']},
+                {"name": "number_null", "type": ['double', 'null']},
+            ]
+        }))
+        output = flatten_schema_to_avro_schema("my_stream", in_dict)
 
-        self.assertEqual(expected, result)
+        self.assertEqual(expected, output)
 
-    def test_flatten_schema_to_pyarrow_schema_type_not_defined(self):
-        in_dict = {"created_at": "new-type"}
+    def test_flatten_schema_to_arrow_schema_type_not_defined(self):
+        in_dict = {"non_existing_type": "new-type"}
 
         with self.assertRaises(NotImplementedError):
-            flatten_schema_to_pyarrow_schema(in_dict)
+            flatten_schema_to_avro_schema("my_stream", in_dict)
 
-    def test_create_dataframe(self):
-        input_data = [{
-            "key_1": 1,
-            "key_2__key_4__key_5": 3,
-            "key_2__key_3": 2,
-            "key_2__key_4__key_6": "['10', '11']",
-        }]
+    def test_generate_file_name(self):
+        # Test separated folder
+        config = TargetConfig(hdfs_destination_path='', streams_in_separate_folder=True)
+        self.assertEqual('20230101_000000-000000.bz2.avro', config.generate_file_name('my_stream'))
 
-        schema = pa.schema([
-            pa.field("key_1", pa.int64(), False),
-            pa.field("key_2__key_4__key_6", pa.string(), False),
-            pa.field("key_2__key_3", pa.string(), True),
-            pa.field("key_2__key_4__key_5", pa.int64(), True)
-        ])
+        # Test not separated folder
+        config = TargetConfig(hdfs_destination_path='', streams_in_separate_folder=False)
+        self.assertEqual('my_stream-20230101_000000-000000.bz2.avro', config.generate_file_name('my_stream'))
 
-        df = create_dataframe(input_data, schema)
-        self.assertEqual(sorted(df.column_names), sorted(schema.names))
-        for field in schema:
-            self.assertEqual(df.schema.field(field.name).type, field.type)
-        self.assertEqual(df.num_rows, 1)
+        # Test not separated folder with prefix
+        config = TargetConfig(hdfs_destination_path='', streams_in_separate_folder=False, file_prefix='scope1')
+        self.assertEqual('scope1-my_stream-20230101_000000-000000.bz2.avro', config.generate_file_name('my_stream'))
 
     def test_generate_hdfs_path(self):
-        self.assertEqual('/path/1/my_stream', generate_hdfs_path('my_stream', '/path/1/', True, None))
-        self.assertEqual('/path/2/', generate_hdfs_path('my_stream', '/path/2/', False, None))
-        self.assertEqual('/path/3/my_stream/my_partition=123',
-                         generate_hdfs_path('my_stream', '/path/3/', True, 'my_partition=123'))
-        self.assertEqual('/path/3/my_partition1=1/my_partition2=2',
-                         generate_hdfs_path('my_stream', '/path/3/', False, 'my_partition1=1/my_partition2=2'))
+        # Test separated folder
+        config = TargetConfig(hdfs_destination_path='/path/1/', streams_in_separate_folder=True)
+        self.assertEqual('/path/1/my_stream/20230101_000000-000000.bz2.avro', config.generate_hdfs_path('my_stream'))
+
+        # Test not separated folder
+        config = TargetConfig(hdfs_destination_path='/path/2/', streams_in_separate_folder=False)
+        self.assertEqual('/path/2/my_stream-20230101_000000-000000.bz2.avro', config.generate_hdfs_path('my_stream'))
+
+        # Test separated folder with partition
+        config = TargetConfig(hdfs_destination_path='/path/3/', streams_in_separate_folder=True, partitions='my_partition=123')
+        self.assertEqual('/path/3/my_stream/my_partition=123/20230101_000000-000000.bz2.avro', config.generate_hdfs_path('my_stream'))
+
+        # Test not separated folder with multiple partitions
+        config = TargetConfig(hdfs_destination_path='/path/4/', streams_in_separate_folder=False, partitions='my_partition1=1/my_partition2=2')
+        self.assertEqual('/path/4/my_partition1=1/my_partition2=2/my_stream-20230101_000000-000000.bz2.avro', config.generate_hdfs_path('my_stream'))

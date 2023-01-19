@@ -8,11 +8,13 @@ import pandas as pd
 import io
 from decimal import Decimal
 import pyarrow as pa
-from pyarrow.parquet import ParquetFile
+from avro.datafile import DataFileReader
+from avro.io import DatumReader
 from pandas.testing import assert_frame_equal
 import glob
 
 from target_hdfs import persist_messages, TargetConfig
+from target_hdfs.helpers import bytes_to_mb
 
 INPUT_MESSAGE_1 = """\
 {"type": "SCHEMA","stream": "test","schema": {"type": "object","properties": {"str": {"type": ["null", "string"]},"int": {"type": ["null", "integer"]},"decimal": {"type": ["null", "number"]},"date": {"type": ["null", "string"], "format": "date-time"},"datetime": {"type": ["null", "string"], "format": "date-time"},"boolean": {"type": ["null", "boolean"]}}}, "key_properties": ["str"]}
@@ -108,21 +110,35 @@ EXPECTED_DF_3 = pd.DataFrame(
 class TestPersist(TestCase):
     def setUp(self):
         """Mocking HDFS methods to run local tests"""
-        self.upload_to_hdfs_patcher = patch('target_hdfs.helpers.upload_to_hdfs')
+        self.upload_to_hdfs_helper_patcher = patch('target_hdfs.helpers.upload_to_hdfs')
+        self.mock_upload_to_hdfs_helper = self.upload_to_hdfs_helper_patcher.start()
+        self.mock_upload_to_hdfs_helper.side_effect = self.local_persist
+
+        self.upload_to_hdfs_patcher = patch('target_hdfs.upload_to_hdfs')
         self.mock_upload_to_hdfs = self.upload_to_hdfs_patcher.start()
-        self.mock_upload_to_hdfs.side_effect = lambda local, destination: shutil.copy(local, destination)
+        self.mock_upload_to_hdfs.side_effect = self.local_persist
+
+    @staticmethod
+    def local_persist(local_file, _, config):
+        shutil.copy(local_file, config.hdfs_destination_path)
 
     @staticmethod
     def generate_input_message(message):
         return io.TextIOWrapper(io.BytesIO(message.encode()), encoding="utf-8")
 
+    def read_avro_to_pandas(self, dir_path):
+        files = [f for f in glob.glob(f"{dir_path}/*.avro")]
+        dfs = []
+        for file in files:
+            with DataFileReader(open(file, "rb"), DatumReader()) as reader:
+                dfs.append(pd.DataFrame.from_records([record for record in reader]))
+                print(len(dfs[-1]))
+        return pd.concat(dfs, ignore_index=True)
+
     def test_persist_messages(self):
         with tempfile.TemporaryDirectory() as tmpdirname:
-            os.makedirs(os.path.join(tmpdirname, 'test'))
             persist_messages(self.generate_input_message(INPUT_MESSAGE_1), TargetConfig(f"{tmpdirname}"))
-            filename = [f for f in glob.glob(f"{tmpdirname}/test/*.parquet")]
-            df = ParquetFile(filename[0]).read().to_pandas()
-            assert_frame_equal(df, EXPECTED_DF_1, check_like=True)
+            assert_frame_equal(EXPECTED_DF_1, self.read_avro_to_pandas(tmpdirname), check_like=True)
 
     def test_persist_messages_null_field(self):
         """
@@ -130,52 +146,22 @@ class TestPersist(TestCase):
         if it doesn't replace the values if we have a conflict of the same field name in different levels of object.
         """
         with tempfile.TemporaryDirectory() as tmpdirname:
-            os.makedirs(os.path.join(tmpdirname, 'test'))
             persist_messages(self.generate_input_message(INPUT_MESSAGE_3), TargetConfig(f"{tmpdirname}"))
-            filename = [f for f in glob.glob(f"{tmpdirname}/test/*.parquet")]
-            df = ParquetFile(filename[0]).read().to_pandas()
-            assert_frame_equal(df, EXPECTED_DF_3, check_like=True)
+            assert_frame_equal(EXPECTED_DF_3, self.read_avro_to_pandas(tmpdirname), check_like=True)
 
     def test_persist_messages_invalid_sort(self):
         with tempfile.TemporaryDirectory() as tmpdirname:
-            os.makedirs(os.path.join(tmpdirname, 'test'))
             with self.assertRaises(ValueError) as e:
                 persist_messages(self.generate_input_message(INPUT_MESSAGE_1_REORDERED), TargetConfig(f"{tmpdirname}"))
                 self.assertEqual("A record for stream test was encountered before a corresponding schema", e.exception)
 
-    def test_persist_with_schema_force(self):
-        with tempfile.TemporaryDirectory() as tmpdirname:
-            os.makedirs(os.path.join(tmpdirname, 'test'))
-            persist_messages(self.generate_input_message(INPUT_MESSAGE_2_WITH_DIFFERENT_DATA_TYPES), TargetConfig(f"{tmpdirname}"))
-            filename = [f for f in glob.glob(f"{tmpdirname}/test/*.parquet")]
-            schema = pa.parquet.read_schema(filename[0])
-            expected_schema = pa.schema([
-                pa.field("decimal", pa.float64(), True),
-                pa.field("datetime", pa.string(), True),
-                pa.field("date", pa.string(), True),
-                pa.field("int", pa.int64(), True),
-                pa.field("boolean", pa.bool_(), True),
-                pa.field("decimal2", pa.float64(), True),
-                pa.field("str", pa.string(), True)
-            ])
-            for field in expected_schema:
-                self.assertEqual(schema.field(field.name).type, field.type)
-
-    def test_rows_per_file(self):
-        with tempfile.TemporaryDirectory() as tmpdirname:
-            os.makedirs(os.path.join(tmpdirname, 'test'))
-            persist_messages(self.generate_input_message(INPUT_MESSAGE_1 * 10000), TargetConfig(f"{tmpdirname}", rows_per_file=1000))
-            filename = [f for f in glob.glob(f"{tmpdirname}/test/*.parquet")]
-            self.assertEqual(len(filename), 30)
-            df = ParquetFile(filename[0]).read().to_pandas()
-            self.assertEqual(len(df), 1000)
-
     def test_file_size(self):
+        multiplier = 50_000
         with tempfile.TemporaryDirectory() as tmpdirname:
-            os.makedirs(os.path.join(tmpdirname, 'test'))
-            persist_messages(self.generate_input_message(INPUT_MESSAGE_1 * 50000), TargetConfig(f"{tmpdirname}", file_size_mb=1))
-            filename = [f for f in glob.glob(f"{tmpdirname}/test/*.parquet")]
-            self.assertEqual(len(filename), 10)
-            df = ParquetFile(filename[0]).read()
-            self.assertAlmostEqual(df.nbytes / (1024 * 1024), 1, 1)
-
+            persist_messages(self.generate_input_message(INPUT_MESSAGE_1 * multiplier), TargetConfig(f"{tmpdirname}", file_size_mb=5, compression_method=None))
+            filename = [f for f in glob.glob(f"{tmpdirname}/*.avro")]
+            file_sizes = [os.path.getsize(f) for f in filename]
+            df = self.read_avro_to_pandas(tmpdirname)
+            self.assertEqual(len(df), 150_000)  # 150k records
+            self.assertGreater(len(filename), 1)  # More than one file geneated
+            self.assertGreaterEqual(bytes_to_mb(max(file_sizes)), 5)  # File size is greater than 5MB

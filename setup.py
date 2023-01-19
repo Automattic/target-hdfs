@@ -12,7 +12,10 @@ setup(name='target-hdfs',
       py_modules=['target_hdfs'],
       install_requires=[
           "singer-python>=5.13.0<6.0.0",
-          "pyarrow>=10.0.1<11.0.0"
+          "pyarrow>=10.0.1<11.0.0",
+          "avro>=1.1.11<2.0.0",
+          "python-snappy>=0.6.1<1.0.0",
+          "zstandard>=0.19.0<1.0.0"
       ],
       extras_require={"dev": ["pytest<8.0.0", "pandas<2.0.0", "pylint<3.0.0", "pylint-quotes<1.0.0"]},
       entry_points='''

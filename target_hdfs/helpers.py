@@ -1,14 +1,19 @@
-import gc
+import json
 import os
-import tempfile
-from datetime import datetime
-from typing import List, Union, MutableMapping, Dict
+from typing import MutableMapping
 
+import avro
 import pyarrow as pa
 import singer
-from pyarrow.parquet import ParquetWriter
+from avro.datafile import DataFileWriter
+from avro.io import DatumWriter
+from avro.schema import Schema
 
 LOGGER = singer.get_logger()
+
+
+def bytes_to_mb(x):
+    return x / (1024 * 1024)
 
 
 def flatten(dictionary, flat_schema, parent_key='', sep='__'):
@@ -94,86 +99,97 @@ def flatten_schema(dictionary, parent_key='', sep='__'):
     if dictionary:
         for key, value in dictionary.items():
             new_key = parent_key + sep + key if parent_key else key
+            types = value.get('type', [])
             if 'type' not in value:
-                LOGGER.warning(f'SCHEMA with limited support on field {key}: {value}')
-            if 'object' in value.get('type', []):
+                if 'anyOf' in value:
+                    types = [item['type'] for item in value['anyOf'] if 'type' in item]
+                else:
+                    LOGGER.warning(f'SCHEMA with limited support on field {key}: {value}')
+            if 'object' in types:
                 items.update(flatten_schema(value.get('properties'), new_key, sep=sep))
             else:
-                items[new_key] = value.get('type', None)
+                items[new_key] = types
     return items
 
 
-FIELD_TYPE_TO_PYARROW = {
-    'BOOLEAN': pa.bool_(),
-    'STRING': pa.string(),
-    'ARRAY': pa.string(),
-    '': pa.string(),  # string type will be considered as default
-    'INTEGER': pa.int64(),
-    'NUMBER': pa.float64()
+FIELD_TYPE_TO_AVRO_TYPES = {
+    'BOOLEAN': 'boolean',
+    'STRING': 'string',
+    'ARRAY': 'string',
+    '': 'string',  # string type will be considered as default
+    'INTEGER': 'int',
+    'NUMBER': 'double',
+    'DATE-TIME': 'long',
+    'NULL': 'null'
 }
 
 
-def _field_type_to_pyarrow_field(field_name: str, input_types: Union[List[str], str]):
-    input_types = input_types or []
-    if isinstance(input_types, str):
-        input_types = [input_types]
-    types_uppercase = {item.upper() for item in input_types}
-    nullable = 'NULL' in types_uppercase
-    types_uppercase.discard('NULL')
-    input_type = list(types_uppercase)[0] if types_uppercase else ''
-    pyarrow_type = FIELD_TYPE_TO_PYARROW.get(input_type, None)
-
-    if not pyarrow_type:
-        raise NotImplementedError(f'Data types "{input_types}" for field {field_name} is not yet supported.')
-
-    return pa.field(field_name, pyarrow_type, nullable)
-
-
-def flatten_schema_to_pyarrow_schema(flatten_schema_dictionary) -> pa.Schema:
-    """Function that converts a flatten schema to a pyarrow schema in a defined order
+def flatten_schema_to_avro_schema(stream_name, flatten_schema_dictionary) -> Schema:
+    """Function that converts a flatten schema to an avro schema
     E.g:
-     dictionary = {
+     steam_name = 'my_stream'
+     flatten_schema_dictionary = {
              'key_1': ['null', 'integer'],
              'key_2__key_3': ['null', 'string'],
              'key_2__key_4__key_5': ['null', 'integer'],
              'key_2__key_4__key_6': ['null', 'array']
         }
     By calling the function with the dictionary above as parameter, you will get the following structure:
-        pa.schema([
-             pa.field('key_1', pa.int64()),
-             pa.field('key_2__key_3', pa.string()),
-             pa.field('key_2__key_4__key_5', pa.int64()),
-             pa.field('key_2__key_4__key_6', pa.string())
-        ])
+        {"namespace": "my_stream",
+         "type": "record",
+         "name": "my_stream",
+         "fields": [
+             {"name": "key_1", "type": ['null', 'int']},
+             {"name": "key_2__key_3",  "type": ['null', 'string']},
+             {"name": "key_2__key_4__key_5",  "type": ['null', 'int']},
+             {"name": "key_2__key_4__key_6", "type": ['null', "string"]}
+         ]
+        }
     """
     flatten_schema_dictionary = flatten_schema_dictionary or {}
-    return pa.schema(
-        [_field_type_to_pyarrow_field(field_name, field_input_types)
-         for field_name, field_input_types in flatten_schema_dictionary.items()]
-    )
+    try:
+        avsc_fields = [
+            {'name': field_name,
+             'type': ([FIELD_TYPE_TO_AVRO_TYPES[field_type.upper()]
+                       for field_type in field_input_types] if isinstance(field_input_types, list)
+                      else FIELD_TYPE_TO_AVRO_TYPES[field_input_types.upper()])}
+            for field_name, field_input_types in flatten_schema_dictionary.items()]
+    except KeyError as e:
+        raise NotImplementedError(f'Data type not supported: {e}')
+
+    return avro.schema.parse(json.dumps(
+        {'namespace': stream_name,
+         'type': 'record',
+         'name': stream_name,
+         'fields': list(avsc_fields)}))
 
 
-def create_dataframe(list_dict: List[Dict], schema: pa.Schema):
-    """"Create a pyarrow Table from a python list of dict"""
-    data = {f: [row.get(f) for row in list_dict] for f in schema.names}
-    return pa.table(data).cast(schema)
+def write_record_to_avro_file(stream_name: str, schema: Schema, record, config, tempdir, files_uploaded,
+                              local_writers):
+
+    """Append row to avro file (create the file if not exist)"""
+    if stream_name not in local_writers:
+        current_file_path = os.path.join(tempdir, config.generate_file_name(stream_name))
+        local_writers[stream_name] = DataFileWriter(open(current_file_path, 'wb'), DatumWriter(), schema, codec=config.compression_method)
+
+    # Including record to avro file
+    local_writers[stream_name].append(record)
+
+    # Upload file when size reach the defined file size
+    if bytes_to_mb(os.path.getsize(local_writers[stream_name].writer.name)) >= config.file_size_mb:
+        files_uploaded.append(close_writer_and_upload(local_writers, stream_name, config))
 
 
-def concat_tables(current_stream_name: str, dataframes: Dict[str, pa.Table],
-                  records: Dict[str, List[Dict]], schema: pa.Schema):
-    """Create a dataframe from records and concatenate with the existing one"""
-    dataframe = create_dataframe(records.pop(current_stream_name), schema)
-    if current_stream_name not in dataframes:
-        dataframes[current_stream_name] = dataframe
-    else:
-        dataframes[current_stream_name] = pa.concat_tables([dataframes[current_stream_name], dataframe])
-    LOGGER.debug(f'Database[{current_stream_name}] size: '
-                 f'{dataframes[current_stream_name].nbytes / 1024 / 1024} MB | '
-                 f'{dataframes[current_stream_name].num_rows} rows')
+def close_writer_and_upload(local_writers, stream_name, config):
+    local_file = local_writers[stream_name].writer.name
+    local_writers[stream_name].close()
+    del local_writers[stream_name]
+    return upload_to_hdfs(local_file, stream_name, config)
 
 
-def upload_to_hdfs(local_file, destination_path_hdfs) -> None:
+def upload_to_hdfs(local_file, stream_name, config) -> None:
     """Upload a local file to HDFS using RPC"""
+    destination_path_hdfs = config.generate_hdfs_path(stream_name)
     LOGGER.debug(f'Uploading file to HDFS: {destination_path_hdfs} ')
     pa.fs.copy_files(
         local_file,
@@ -182,38 +198,4 @@ def upload_to_hdfs(local_file, destination_path_hdfs) -> None:
         destination_filesystem=pa.fs.HadoopFileSystem('default')
     )
     LOGGER.info(f'File {destination_path_hdfs} uploaded to HDFS')
-
-
-def write_file_to_hdfs(current_stream_name, dataframes, records, schema, config, files_created_list):
-    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S-%f')
-
-    # Converting the last records to pyarrow table
-    if records[current_stream_name]:
-        concat_tables(current_stream_name, dataframes, records, schema)
-
-    if current_stream_name in dataframes:
-        hdfs_path = generate_hdfs_path(current_stream_name, config.hdfs_destination_path,
-                                           config.streams_in_separate_folder, config.partitions)
-
-        with tempfile.NamedTemporaryFile('wb') as tmp_file:
-            ParquetWriter(tmp_file.name, dataframes[current_stream_name].schema,
-                          compression=config.compression_method).write_table(dataframes[current_stream_name])
-            filename = f'{timestamp}{config.compression_extension}.parquet'
-            if not config.streams_in_separate_folder:
-                filename = f'{current_stream_name}{config.filename_separator}{filename}'
-            hdfs_file_path = os.path.join(hdfs_path, filename)
-            upload_to_hdfs(tmp_file.name, hdfs_file_path)
-            files_created_list.append(hdfs_file_path)
-
-        # explicit memory management. This can be useful when working on very large data groups
-        del dataframes[current_stream_name]
-        gc.collect()
-
-
-def generate_hdfs_path(current_stream_name, hdfs_destination_path, streams_in_separate_folder, partitions):
-    hdfs_filepath = hdfs_destination_path
-    if streams_in_separate_folder:
-        hdfs_filepath = os.path.join(hdfs_filepath, current_stream_name)
-    if partitions:
-        hdfs_filepath = os.path.join(hdfs_filepath, partitions)
-    return hdfs_filepath
+    return destination_path_hdfs
