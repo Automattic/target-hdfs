@@ -154,8 +154,8 @@ def flatten_schema_to_avro_schema(stream_name, flatten_schema_dictionary) -> Sch
                        for field_type in field_input_types] if isinstance(field_input_types, list)
                       else FIELD_TYPE_TO_AVRO_TYPES[field_input_types.upper()])}
             for field_name, field_input_types in flatten_schema_dictionary.items()]
-    except KeyError as e:
-        raise NotImplementedError(f'Data type not supported: {e}')
+    except KeyError as key_exception:
+        raise NotImplementedError(f'Data type not supported: {key_exception}') from key_exception
 
     return avro.schema.parse(json.dumps(
         {'namespace': stream_name,
@@ -170,7 +170,9 @@ def write_record_to_avro_file(stream_name: str, schema: Schema, record, config, 
     """Append row to avro file (create the file if not exist)"""
     if stream_name not in local_writers:
         current_file_path = os.path.join(tempdir, config.generate_file_name(stream_name))
-        local_writers[stream_name] = DataFileWriter(open(current_file_path, 'wb'), DatumWriter(), schema, codec=config.compression_method)
+        # pylint: disable=consider-using-with
+        local_writers[stream_name] = DataFileWriter(open(current_file_path, 'wb'), DatumWriter(), schema,
+                                                    codec=config.compression_method)
 
     # Including record to avro file
     local_writers[stream_name].append(record)
