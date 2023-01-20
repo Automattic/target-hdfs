@@ -114,9 +114,8 @@ class TestPersist(TestCase):
         self.mock_upload_to_hdfs_helper = self.upload_to_hdfs_helper_patcher.start()
         self.mock_upload_to_hdfs_helper.side_effect = self.local_persist
 
-        self.upload_to_hdfs_patcher = patch('target_hdfs.upload_to_hdfs')
-        self.mock_upload_to_hdfs = self.upload_to_hdfs_patcher.start()
-        self.mock_upload_to_hdfs.side_effect = self.local_persist
+    def tearDown(self):
+        self.upload_to_hdfs_helper_patcher.stop()
 
     @staticmethod
     def local_persist(local_file, _, config):
@@ -132,12 +131,12 @@ class TestPersist(TestCase):
         for file in files:
             with DataFileReader(open(file, "rb"), DatumReader()) as reader:
                 dfs.append(pd.DataFrame.from_records([record for record in reader]))
-                print(len(dfs[-1]))
         return pd.concat(dfs, ignore_index=True)
 
     def test_persist_messages(self):
         with tempfile.TemporaryDirectory() as tmpdirname:
             persist_messages(self.generate_input_message(INPUT_MESSAGE_1), TargetConfig(f"{tmpdirname}"))
+
             assert_frame_equal(EXPECTED_DF_1, self.read_avro_to_pandas(tmpdirname), check_like=True)
 
     def test_persist_messages_null_field(self):
@@ -147,12 +146,14 @@ class TestPersist(TestCase):
         """
         with tempfile.TemporaryDirectory() as tmpdirname:
             persist_messages(self.generate_input_message(INPUT_MESSAGE_3), TargetConfig(f"{tmpdirname}"))
+
             assert_frame_equal(EXPECTED_DF_3, self.read_avro_to_pandas(tmpdirname), check_like=True)
 
     def test_persist_messages_invalid_sort(self):
         with tempfile.TemporaryDirectory() as tmpdirname:
             with self.assertRaises(ValueError) as e:
                 persist_messages(self.generate_input_message(INPUT_MESSAGE_1_REORDERED), TargetConfig(f"{tmpdirname}"))
+
                 self.assertEqual("A record for stream test was encountered before a corresponding schema", e.exception)
 
     def test_file_size(self):
@@ -162,6 +163,7 @@ class TestPersist(TestCase):
             filename = [f for f in glob.glob(f"{tmpdirname}/*.avro")]
             file_sizes = [os.path.getsize(f) for f in filename]
             df = self.read_avro_to_pandas(tmpdirname)
+
             self.assertEqual(len(df), 150_000)  # 150k records
-            self.assertGreater(len(filename), 1)  # More than one file geneated
+            self.assertGreater(len(filename), 1)  # More than one file generated
             self.assertGreaterEqual(bytes_to_mb(max(file_sizes)), 5)  # File size is greater than 5MB

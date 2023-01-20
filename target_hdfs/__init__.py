@@ -4,18 +4,16 @@ import json
 import os
 import sys
 import tempfile
-from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from multiprocessing import Queue, Process
 from typing import Optional
 
-import simplejson
 import singer
 from jsonschema.validators import Draft4Validator
 
-from .helpers import flatten, flatten_schema, write_record_to_avro_file, flatten_schema_to_avro_schema, upload_to_hdfs, \
+from .helpers import flatten, flatten_schema, write_record_to_avro_file, flatten_schema_to_avro_schema, \
     close_writer_and_upload
 
 _all__ = ['main']

@@ -19,6 +19,9 @@ class TestHelpers(TestCase):
         self.mock_datetime = self.datetime_patcher.start()
         self.mock_datetime.utcnow = mock.Mock(return_value=datetime(2023, 1, 1))
 
+    def tearDown(self):
+        self.datetime_patcher.stop()
+
     @pytest.fixture(autouse=True)
     def inject_fixtures(self, caplog):
         self._caplog = caplog
