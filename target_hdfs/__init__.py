@@ -179,7 +179,7 @@ def main():
         messages=input_messages,
         config=TargetConfig(
             hdfs_destination_path=config.get('hdfs_destination_path', 'output'),
-            compression_method=config.get('compression_method', 'gzip'),
+            compression_method=config.get('compression_method', 'bzip2'),
             streams_in_separate_folder=config.get('streams_in_separate_folder', True),
             file_prefix=config.get('file_prefix', None),
             file_size_mb=config.get('file_size_mb', None),
