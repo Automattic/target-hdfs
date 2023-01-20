@@ -3,7 +3,7 @@ import os
 from typing import MutableMapping
 
 import avro
-import pyarrow as pa
+import pyarrow.fs
 import singer
 from avro.datafile import DataFileWriter
 from avro.io import DatumWriter
@@ -194,11 +194,11 @@ def upload_to_hdfs(local_file, stream_name, config) -> None:
     """Upload a local file to HDFS using RPC"""
     destination_path_hdfs = config.generate_hdfs_path(stream_name)
     LOGGER.debug(f'Uploading file to HDFS: {destination_path_hdfs} ')
-    pa.fs.copy_files(
+    pyarrow.fs.copy_files(
         local_file,
         destination_path_hdfs,
-        source_filesystem=pa.fs.LocalFileSystem(),
-        destination_filesystem=pa.fs.HadoopFileSystem('default')
+        source_filesystem=pyarrow.fs.LocalFileSystem(),
+        destination_filesystem=pyarrow.fs.HadoopFileSystem('default')
     )
     LOGGER.info(f'File {destination_path_hdfs} uploaded to HDFS')
     return destination_path_hdfs
