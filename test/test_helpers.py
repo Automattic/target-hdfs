@@ -193,7 +193,7 @@ class TestHelpers(TestCase):
 
         # Test not separated folder with prefix
         config = TargetConfig(hdfs_destination_path='', streams_in_separate_folder=False, file_prefix='scope1')
-        self.assertEqual('scope1-my_stream-20230101_000000-000000.bz2.avro', config.generate_file_name('my_stream'))
+        self.assertEqual('my_stream-scope1-20230101_000000-000000.bz2.avro', config.generate_file_name('my_stream'))
 
     def test_generate_hdfs_path(self):
         # Test separated folder

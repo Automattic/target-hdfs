@@ -60,10 +60,10 @@ class TargetConfig:
     def generate_file_name(self, stream_name):
         timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S-%f')
         file_name = f'{timestamp}{self.compression_extension}.avro'
+        if self.file_prefix:
+            file_name = f'{self.file_prefix}-{file_name}'
         if not self.streams_in_separate_folder:
             file_name = f'{stream_name}{self.filename_separator}{file_name}'
-        if self.file_prefix:
-            file_name = f'{self.file_prefix}{self.filename_separator}{file_name}'
         return file_name
 
     def generate_hdfs_path(self, stream_name):
