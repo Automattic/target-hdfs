@@ -24,6 +24,7 @@ class TestHelpers(TestCase):
 
     @pytest.fixture(autouse=True)
     def inject_fixtures(self, caplog):
+        # to capture log messages
         self._caplog = caplog
 
     def test_flatten(self):

@@ -106,6 +106,17 @@ EXPECTED_DF_3 = pd.DataFrame(
         ]
     )
 
+# With int more than 32 bits
+INPUT_MESSAGE_4 = """\
+{"type": "SCHEMA","stream": "test","schema": { "type": ["null", "object"], "properties": { "int_field": { "type": "integer" } }, "additionalProperties": false }, "key_properties": ["int"]}
+{"type": "RECORD", "stream": "test", "record": {"int_field": 2147483647 }}
+{"type": "RECORD", "stream": "test", "record": {"int_field": 2147483648 }}
+{"type": "STATE", "value": {"datetime": "2020-10-19"}}
+"""
+
+EXPECTED_DF_4 = pd.DataFrame(
+        [{'int_field': 2147483648}]
+    )
 
 class TestPersist(TestCase):
     def setUp(self):
@@ -176,4 +187,11 @@ class TestPersist(TestCase):
             df = self.read_avro_to_pandas(tmpdirname)
 
             self.assertEqual(len(df), 150_000)  # 150k records
-            self.assertEqual(len(filename), 1)  # More than one file generated
+            self.assertEqual(len(filename), 1)  # One file generated
+
+    def test_avro_type_exception(self):
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            persist_messages(self.generate_input_message(INPUT_MESSAGE_4), TargetConfig(f"{tmpdirname}"))
+
+            assert_frame_equal(EXPECTED_DF_4, self.read_avro_to_pandas(tmpdirname), check_like=True)
+

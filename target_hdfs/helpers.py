@@ -6,6 +6,7 @@ import avro
 import pyarrow.fs
 import singer
 from avro.datafile import DataFileWriter
+from avro.errors import AvroTypeException
 from avro.io import DatumWriter
 from avro.schema import Schema
 
@@ -175,7 +176,10 @@ def write_record_to_avro_file(stream_name: str, schema: Schema, record, config, 
                                                     codec=config.compression_method)
 
     # Including record to avro file
-    local_writers[stream_name].append(record)
+    try:
+        local_writers[stream_name].append(record)
+    except AvroTypeException as exception:
+        LOGGER.error(f'Error writing record \n{record}\n to avro file: \n{exception}')
 
     # Upload file when size reach the defined file size
     if (config.file_size_mb and
