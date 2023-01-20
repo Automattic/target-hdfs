@@ -39,9 +39,9 @@ class TargetConfig:
     compression_method: Optional[str] = 'bzip2'
     compression_extension: str = ''
     streams_in_separate_folder: bool = True
-    file_prefix: str = ''
-    partitions: str = None
-    file_size_mb: int = 250
+    file_prefix: Optional[str] = None
+    partitions: Optional[str] = None
+    file_size_mb: Optional[int] = 250
     filename_separator: str = '-'
 
     def __post_init__(self):
@@ -181,8 +181,8 @@ def main():
             hdfs_destination_path=config.get('hdfs_destination_path', 'output'),
             compression_method=config.get('compression_method', 'gzip'),
             streams_in_separate_folder=config.get('streams_in_separate_folder', True),
-            file_prefix=config.get('file_prefix', ''),
-            file_size_mb=config.get('file_size_mb', -1),
+            file_prefix=config.get('file_prefix', None),
+            file_size_mb=config.get('file_size_mb', None),
             partitions=config.get('partitions')
         )
     )

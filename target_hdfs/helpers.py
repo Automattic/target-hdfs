@@ -178,7 +178,8 @@ def write_record_to_avro_file(stream_name: str, schema: Schema, record, config, 
     local_writers[stream_name].append(record)
 
     # Upload file when size reach the defined file size
-    if bytes_to_mb(os.path.getsize(local_writers[stream_name].writer.name)) >= config.file_size_mb:
+    if (config.file_size_mb and
+            bytes_to_mb(os.path.getsize(local_writers[stream_name].writer.name)) >= config.file_size_mb):
         files_uploaded.append(close_writer_and_upload(local_writers, stream_name, config))
 
 

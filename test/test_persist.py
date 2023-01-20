@@ -167,3 +167,13 @@ class TestPersist(TestCase):
             self.assertEqual(len(df), 150_000)  # 150k records
             self.assertGreater(len(filename), 1)  # More than one file generated
             self.assertGreaterEqual(bytes_to_mb(max(file_sizes)), 5)  # File size is greater than 5MB
+
+    def test_single_file(self):
+        multiplier = 50_000
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            persist_messages(self.generate_input_message(INPUT_MESSAGE_1 * multiplier), TargetConfig(f"{tmpdirname}", file_size_mb=None, compression_method=None))
+            filename = [f for f in glob.glob(f"{tmpdirname}/*.avro")]
+            df = self.read_avro_to_pandas(tmpdirname)
+
+            self.assertEqual(len(df), 150_000)  # 150k records
+            self.assertEqual(len(filename), 1)  # More than one file generated
