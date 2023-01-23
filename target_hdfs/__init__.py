@@ -165,8 +165,8 @@ def persist_messages(messages, config: TargetConfig):
                 current_stream_name = stream_name
                 records[stream_name].append(record)
                 records_count[stream_name] += 1
-                # Update the pyarrow table on every 1000 records
-                if not len(records[current_stream_name]) % 1000:
+                # Update the pyarrow table on every 10000 records
+                if not len(records[current_stream_name]) % 10000:
                     concat_tables(current_stream_name, pyarrow_tables, records, pyarrow_schemas[current_stream_name])
 
                 # Write the file to HDFS if the file size is greater than the specified size or

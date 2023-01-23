@@ -180,9 +180,9 @@ class TestPersist(TestCase):
     def test_file_size(self):
         with tempfile.TemporaryDirectory() as tmpdirname:
             os.makedirs(os.path.join(tmpdirname, 'test'))
-            persist_messages(self.generate_input_message(INPUT_MESSAGE_1 * 50000), TargetConfig(f"{tmpdirname}", file_size_mb=1))
+            persist_messages(self.generate_input_message(INPUT_MESSAGE_1 * 50000), TargetConfig(f"{tmpdirname}", file_size_mb=2))
             filename = [f for f in glob.glob(f"{tmpdirname}/test/*.parquet")]
             df = ParquetFile(filename[0]).read()
 
-            self.assertEqual(len(filename), 10)
-            self.assertAlmostEqual(bytes_to_mb(df.nbytes), 1, places=1)  # approx 1MB per file
+            self.assertEqual(len(filename), 5)
+            self.assertAlmostEqual(bytes_to_mb(df.nbytes), 2, places=1)  # approx 2MB per file
