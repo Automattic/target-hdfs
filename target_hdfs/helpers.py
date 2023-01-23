@@ -7,7 +7,7 @@ import singer
 from pyarrow.parquet import ParquetWriter
 
 LOGGER = singer.get_logger()
-LOGGER.setLevel('debug')
+LOGGER.setLevel('DEBUG')
 
 
 def bytes_to_mb(x):
