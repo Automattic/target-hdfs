@@ -162,7 +162,7 @@ def persist_messages(messages, config: TargetConfig):
                     LOGGER.debug(f'Wrote {files_uploaded} files')
                     more_messages = False
 
-    messages_queue = Queue()
+    messages_queue = Queue(1_000_000)
     process_consumer = Process(target=consumer, args=(messages_queue,),)
     process_consumer.start()
     state = producer(messages, messages_queue)
