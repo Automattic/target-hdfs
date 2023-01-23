@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import Optional
+from multiprocessing import Queue, Process
 
 import singer
 from jsonschema.validators import Draft4Validator
@@ -43,6 +44,7 @@ class TargetConfig:
     file_size_mb: Optional[int] = None
     file_prefix: Optional[str] = None
     filename_separator: str = '-'
+    max_queue_size: Optional[int] = None
 
     def __post_init__(self):
         self.set_compression_extension()
@@ -91,76 +93,112 @@ def emit_state(state):
 
 
 def persist_messages(messages, config: TargetConfig):
-    state = None
-    schemas = {}
-    pyarrow_schemas = {}
-    key_properties = {}
-    validators = {}
-    files_created = []
-    records_count = defaultdict(int)
-    records = defaultdict(list)
-    pyarrow_tables = {}
+    # pylint: disable=too-many-statements
+    # Object that signals shutdown
+    _break_object = object()
 
-    for message in messages:
-        LOGGER.debug(f'target-parquet got message: {message}')
+    def producer(message_buffer: io.TextIOWrapper, w_queue: Queue):
+        schemas = {}
+        key_properties = {}
+        validators = {}
+
+        state = None
         try:
-            message = singer.parse_message(message).asdict()
-        except json.JSONDecodeError as exc:
-            raise Exception(f'Unable to parse:\n{message}') from exc
+            for message in message_buffer:
+                LOGGER.debug(f'target-parquet got message: {message}')
+                try:
+                    message = singer.parse_message(message).asdict()
+                except json.JSONDecodeError as exc:
+                    raise Exception(f'Unable to parse:\n{message}') from exc
 
-        message_type = message['type']
-        if message_type == 'RECORD':
-            stream_name = message['stream']
-            if stream_name not in schemas:
-                raise ValueError(f'A record for stream {stream_name} was encountered '
-                                 f'before a corresponding schema')
-            validators[stream_name].validate(message['record'])
-            records[stream_name].append(flatten(message['record'], schemas[stream_name]))
-            records_count[stream_name] += 1
+                message_type = message['type']
+                if message_type == 'RECORD':
+                    stream_name = message['stream']
+                    if stream_name not in schemas:
+                        raise ValueError(f'A record for stream {stream_name} was encountered '
+                                         f'before a corresponding schema')
+                    validators[stream_name].validate(message['record'])
+                    flattened_record = flatten(message['record'], schemas[stream_name])
+                    # Once the record is flattened, it is added to the final record list,
+                    # which will be stored in the parquet file.
+                    w_queue.put((MessageType.RECORD, stream_name, flattened_record))
+                    state = None
+                elif message_type == 'STATE':
+                    LOGGER.debug(f'Setting state to {message["value"]}')
+                    state = message['value']
+                elif message_type == 'SCHEMA':
+                    stream = message['stream']
+                    validators[stream] = Draft4Validator(message['schema'])
+                    schemas[stream] = flatten_schema(message['schema']['properties'])
+                    LOGGER.debug(f'Schema: {schemas[stream]}')
+                    key_properties[stream] = message['key_properties']
+                    w_queue.put((MessageType.SCHEMA, stream, schemas[stream]))
+                else:
+                    LOGGER.warning(f'Unknown message type {message["type"]} in message {message}')
+            w_queue.put((MessageType.EOF, _break_object, None))
+            return state
+        except Exception as err:
+            w_queue.put((MessageType.EOF, _break_object, None))
+            raise err
 
-            # Update the pyarrow table on every 1000 records
-            if not len(records[stream_name]) % 1000:
-                concat_tables(stream_name, pyarrow_tables, records, pyarrow_schemas[stream_name])
+    def consumer(receiver):
+        files_created = []
+        current_stream_name = None
 
-            # Write the file to HDFS if the file size is greater than the specified size or
-            # if the number of rows is greater than the specified number
-            if ((config.file_size_mb and stream_name in pyarrow_tables and
-                 bytes_to_mb(pyarrow_tables[stream_name].nbytes) >= config.file_size_mb > 0)
-                    or (config.rows_per_file and not records_count[stream_name] % config.rows_per_file)):
-                write_file_to_hdfs(current_stream_name=stream_name,
+        records = defaultdict(list)
+        records_count = defaultdict(int)
+        pyarrow_tables = {}
+        pyarrow_schemas = {}
+        more_messages = True
+
+        while more_messages:
+            (message_type, stream_name, record) = receiver.get()
+            if message_type == MessageType.RECORD:
+                if stream_name != current_stream_name and current_stream_name is not None:
+                    # Write files to HDFS if the stream has changed
+                    write_file_to_hdfs(current_stream_name=current_stream_name,
+                                       pyarrow_tables=pyarrow_tables,
+                                       records=records,
+                                       pyarrow_schema=pyarrow_schemas[current_stream_name],
+                                       config=config,
+                                       files_created_list=files_created)
+                current_stream_name = stream_name
+                records[stream_name].append(record)
+                records_count[stream_name] += 1
+                # Update the pyarrow table on every 1000 records
+                if not len(records[current_stream_name]) % 1000:
+                    concat_tables(current_stream_name, pyarrow_tables, records, pyarrow_schemas[current_stream_name])
+
+                # Write the file to HDFS if the file size is greater than the specified size or
+                # if the number of rows is greater than the specified number
+                if ((config.file_size_mb and current_stream_name in pyarrow_tables and
+                     bytes_to_mb(pyarrow_tables[current_stream_name].nbytes) >= config.file_size_mb > 0)
+                        or (config.rows_per_file and not records_count[current_stream_name] % config.rows_per_file)):
+                    write_file_to_hdfs(current_stream_name=current_stream_name,
+                                       pyarrow_tables=pyarrow_tables,
+                                       records=records,
+                                       pyarrow_schema=pyarrow_schemas[current_stream_name],
+                                       config=config,
+                                       files_created_list=files_created)
+            elif message_type == MessageType.SCHEMA:
+                pyarrow_schemas[stream_name] = flatten_schema_to_pyarrow_schema(record)
+            elif message_type == MessageType.EOF:
+                # Writing the last file to HDFS
+                write_file_to_hdfs(current_stream_name=current_stream_name,
                                    pyarrow_tables=pyarrow_tables,
                                    records=records,
-                                   pyarrow_schema=pyarrow_schemas[stream_name],
+                                   pyarrow_schema=pyarrow_schemas[current_stream_name],
                                    config=config,
                                    files_created_list=files_created)
+                LOGGER.info(f'Wrote {len(files_created)} files')
+                LOGGER.debug(f'Wrote {files_created} files')
+                more_messages = False
 
-            state = None
-        elif message_type == 'STATE':
-            LOGGER.debug(f'Setting state to {message["value"]}')
-            state = message['value']
-        elif message_type == 'SCHEMA':
-            stream = message['stream']
-            validators[stream] = Draft4Validator(message['schema'])
-            schemas[stream] = flatten_schema(message['schema']['properties'])
-            LOGGER.debug(f'Schema: {schemas[stream]}')
-            pyarrow_schemas[stream] = flatten_schema_to_pyarrow_schema(schemas[stream])
-            key_properties[stream] = message['key_properties']
-        else:
-            LOGGER.warning(f'Unknown message type {message["type"]} in message {message}')
-
-    # Write the file with the remaining records/pyarrow_tables
-    for stream_name in schemas:
-        if stream_name in pyarrow_tables or stream_name in records:
-            write_file_to_hdfs(current_stream_name=stream_name,
-                               pyarrow_tables=pyarrow_tables,
-                               records=records,
-                               pyarrow_schema=pyarrow_schemas[stream_name],
-                               config=config,
-                               files_created_list=files_created)
-
-    LOGGER.info(f'Wrote {len(files_created)} files')
-    LOGGER.debug(f'Wrote {files_created} files')
-
+    messages_queue = Queue() if not config.max_queue_size else Queue(config.max_queue_size)
+    process_consumer = Process(target=consumer, args=(messages_queue,),)
+    process_consumer.start()
+    state = producer(messages, messages_queue)
+    process_consumer.join()
     return state
 
 
@@ -178,7 +216,8 @@ def main():
             file_size_mb=config.get('file_size_mb'),
             rows_per_file=config.get('rows_per_file'),
             partitions=config.get('partitions'),
-            file_prefix=config.get('file_prefix')
+            file_prefix=config.get('file_prefix'),
+            max_queue_size=config.get('max_queue_size'),
         )
     )
 
