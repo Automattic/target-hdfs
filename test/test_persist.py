@@ -12,7 +12,7 @@ from pyarrow.parquet import ParquetFile
 from pandas.testing import assert_frame_equal
 import glob
 
-from target_hdfs import persist_messages, TargetConfig
+from target_hdfs import persist_messages, TargetConfig, bytes_to_mb
 
 INPUT_MESSAGE_1 = """\
 {"type": "SCHEMA","stream": "test","schema": {"type": "object","properties": {"str": {"type": ["null", "string"]},"int": {"type": ["null", "integer"]},"decimal": {"type": ["null", "number"]},"date": {"type": ["null", "string"], "format": "date-time"},"datetime": {"type": ["null", "string"], "format": "date-time"},"boolean": {"type": ["null", "boolean"]}}}, "key_properties": ["str"]}
@@ -112,6 +112,9 @@ class TestPersist(TestCase):
         self.mock_upload_to_hdfs = self.upload_to_hdfs_patcher.start()
         self.mock_upload_to_hdfs.side_effect = lambda local, destination: shutil.copy(local, destination)
 
+    def tearDown(self):
+        self.upload_to_hdfs_patcher.stop()
+
     @staticmethod
     def generate_input_message(message):
         return io.TextIOWrapper(io.BytesIO(message.encode()), encoding="utf-8")
@@ -141,6 +144,7 @@ class TestPersist(TestCase):
             os.makedirs(os.path.join(tmpdirname, 'test'))
             with self.assertRaises(ValueError) as e:
                 persist_messages(self.generate_input_message(INPUT_MESSAGE_1_REORDERED), TargetConfig(f"{tmpdirname}"))
+
                 self.assertEqual("A record for stream test was encountered before a corresponding schema", e.exception)
 
     def test_persist_with_schema_force(self):
@@ -158,6 +162,8 @@ class TestPersist(TestCase):
                 pa.field("decimal2", pa.float64(), True),
                 pa.field("str", pa.string(), True)
             ])
+
+            # Testing each field in schema
             for field in expected_schema:
                 self.assertEqual(schema.field(field.name).type, field.type)
 
@@ -166,16 +172,17 @@ class TestPersist(TestCase):
             os.makedirs(os.path.join(tmpdirname, 'test'))
             persist_messages(self.generate_input_message(INPUT_MESSAGE_1 * 10000), TargetConfig(f"{tmpdirname}", rows_per_file=1000))
             filename = [f for f in glob.glob(f"{tmpdirname}/test/*.parquet")]
-            self.assertEqual(len(filename), 30)
             df = ParquetFile(filename[0]).read().to_pandas()
-            self.assertEqual(len(df), 1000)
+
+            self.assertEqual(len(filename), 30)
+            self.assertEqual(len(df), 1000)  # 1000 rows per file
 
     def test_file_size(self):
         with tempfile.TemporaryDirectory() as tmpdirname:
             os.makedirs(os.path.join(tmpdirname, 'test'))
             persist_messages(self.generate_input_message(INPUT_MESSAGE_1 * 50000), TargetConfig(f"{tmpdirname}", file_size_mb=1))
             filename = [f for f in glob.glob(f"{tmpdirname}/test/*.parquet")]
-            self.assertEqual(len(filename), 10)
             df = ParquetFile(filename[0]).read()
-            self.assertAlmostEqual(df.nbytes / (1024 * 1024), 1, 1)
 
+            self.assertEqual(len(filename), 10)
+            self.assertAlmostEqual(bytes_to_mb(df.nbytes), 1, 1)  # approx 1MB per file

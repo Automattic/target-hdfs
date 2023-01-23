@@ -1,15 +1,26 @@
-from unittest import TestCase
+from datetime import datetime
+from unittest import TestCase, mock
+from unittest.mock import patch
 
 import pyarrow as pa
 import logging
 
 import pytest
 
-from target_hdfs.helpers import flatten, flatten_schema, flatten_schema_to_pyarrow_schema, create_dataframe, \
-    generate_hdfs_path
+from target_hdfs import TargetConfig
+from target_hdfs.helpers import flatten, flatten_schema, flatten_schema_to_pyarrow_schema, create_dataframe
 
 
 class TestHelpers(TestCase):
+    def setUp(self):
+        """Mocking datetime"""
+        self.datetime_patcher = patch('target_hdfs.datetime')
+        self.mock_datetime = self.datetime_patcher.start()
+        self.mock_datetime.utcnow = mock.Mock(return_value=datetime(2023, 1, 1))
+
+    def tearDown(self):
+        self.datetime_patcher.stop()
+
     @pytest.fixture(autouse=True)
     def inject_fixtures(self, caplog):
         self._caplog = caplog
@@ -92,33 +103,29 @@ class TestHelpers(TestCase):
         output = flatten_schema(in_dict)
         self.assertEqual(output, expected)
 
-    def test_flatten_schema_2(self):
+    def test_flatten_schema_with_anyOf(self):
         in_dict = {
-            "id": {"type": "integer"},
-            "created_at": {"type": "string", "format": "date-time"},
-            "updated_at": {"type": "string", "format": "date-time"},
-            "email": {"type": "string"},
-            "last_surveyed": {
+            "int": {"type": "integer"},
+            "string_date": {"type": "string", "format": "date-time"},
+            "string": {"type": "string"},
+            "anyOf": {
                 "anyOf": [{"type": "null"}, {"type": "string", "format": "date-time"}]
             },
-            "external_created_at": {"type": ["integer", "null"]},
-            "page_views_count": {"type": "integer"},
+            "int_null": {"type": ["null", "integer"]},
         }
 
         expected = {
-            "id": "integer",
-            "created_at": "string",
-            "updated_at": "string",
-            "email": "string",
-            "last_surveyed": None,
-            "external_created_at": ["integer", "null"],
-            "page_views_count": "integer",
+            "int": "integer",
+            "string_date": "string",
+            "string": "string",
+            "anyOf": None,
+            "int_null": ["null", "integer"],
         }
 
         with self._caplog.at_level(logging.WARNING):
             output = flatten_schema(in_dict)
             for record in self._caplog.records:
-                self.assertIn("SCHEMA with limited support on field last_surveyed", record.message)
+                self.assertIn("SCHEMA with limited support on field anyOf", record.message)
         self.assertEqual(output, expected)
 
     def test_flatten_schema_empty(self):
@@ -180,10 +187,32 @@ class TestHelpers(TestCase):
             self.assertEqual(df.schema.field(field.name).type, field.type)
         self.assertEqual(df.num_rows, 1)
 
+    def test_generate_file_name(self):
+        # Test separated folder
+        config = TargetConfig(hdfs_destination_path='', streams_in_separate_folder=True)
+        self.assertEqual('20230101_000000-000000.gz.parquet', config.generate_file_name('my_stream'))
+
+        # Test not separated folder
+        config = TargetConfig(hdfs_destination_path='', streams_in_separate_folder=False)
+        self.assertEqual('my_stream-20230101_000000-000000.gz.parquet', config.generate_file_name('my_stream'))
+
+        # Test not separated folder with prefix
+        config = TargetConfig(hdfs_destination_path='', streams_in_separate_folder=False, file_prefix='scope1')
+        self.assertEqual('my_stream-scope1-20230101_000000-000000.gz.parquet', config.generate_file_name('my_stream'))
+
     def test_generate_hdfs_path(self):
-        self.assertEqual('/path/1/my_stream', generate_hdfs_path('my_stream', '/path/1/', True, None))
-        self.assertEqual('/path/2/', generate_hdfs_path('my_stream', '/path/2/', False, None))
-        self.assertEqual('/path/3/my_stream/my_partition=123',
-                         generate_hdfs_path('my_stream', '/path/3/', True, 'my_partition=123'))
-        self.assertEqual('/path/3/my_partition1=1/my_partition2=2',
-                         generate_hdfs_path('my_stream', '/path/3/', False, 'my_partition1=1/my_partition2=2'))
+        # Test separated folder
+        config = TargetConfig(hdfs_destination_path='/path/1/', streams_in_separate_folder=True)
+        self.assertEqual('/path/1/my_stream/20230101_000000-000000.gz.parquet', config.generate_hdfs_path('my_stream'))
+
+        # Test not separated folder
+        config = TargetConfig(hdfs_destination_path='/path/2/', streams_in_separate_folder=False)
+        self.assertEqual('/path/2/my_stream-20230101_000000-000000.gz.parquet', config.generate_hdfs_path('my_stream'))
+
+        # Test separated folder with partition
+        config = TargetConfig(hdfs_destination_path='/path/3/', streams_in_separate_folder=True, partitions='my_partition=123')
+        self.assertEqual('/path/3/my_stream/my_partition=123/20230101_000000-000000.gz.parquet', config.generate_hdfs_path('my_stream'))
+
+        # Test not separated folder with multiple partitions
+        config = TargetConfig(hdfs_destination_path='/path/4/', streams_in_separate_folder=False, partitions='my_partition1=1/my_partition2=2')
+        self.assertEqual('/path/4/my_partition1=1/my_partition2=2/my_stream-20230101_000000-000000.gz.parquet', config.generate_hdfs_path('my_stream'))
