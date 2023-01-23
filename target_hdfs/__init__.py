@@ -107,7 +107,7 @@ def persist_messages(messages, config: TargetConfig):
             for message in message_buffer:
                 LOGGER.debug(f'target-parquet got message: {message}')
                 try:
-                    message = singer.parse_message(message).asdict()
+                    message = json.loads(message)
                 except json.JSONDecodeError as exc:
                     raise Exception(f'Unable to parse:\n{message}') from exc
 
