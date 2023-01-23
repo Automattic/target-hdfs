@@ -185,4 +185,4 @@ class TestPersist(TestCase):
             df = ParquetFile(filename[0]).read()
 
             self.assertEqual(len(filename), 10)
-            self.assertAlmostEqual(bytes_to_mb(df.nbytes), 1, 1)  # approx 1MB per file
+            self.assertAlmostEqual(bytes_to_mb(df.nbytes), 1, places=1)  # approx 1MB per file
