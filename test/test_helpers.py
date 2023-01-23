@@ -170,15 +170,15 @@ class TestHelpers(TestCase):
         input_data = [{
             "key_1": 1,
             "key_2__key_4__key_5": 3,
-            "key_2__key_3": '2',
+            "key_2__key_3": 2,
             "key_2__key_4__key_6": "['10', '11']",
         }]
 
         schema = pa.schema([
             pa.field("key_1", pa.int64(), False),
-            pa.field("key_2__key_4__key_5", pa.int64(), True),
-            pa.field("key_2__key_3", pa.string(), True),
             pa.field("key_2__key_4__key_6", pa.string(), False),
+            pa.field("key_2__key_3", pa.string(), True),
+            pa.field("key_2__key_4__key_5", pa.int64(), True)
         ])
 
         df = create_dataframe(input_data, schema)
