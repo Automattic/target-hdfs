@@ -186,7 +186,8 @@ def upload_to_hdfs(local_file, destination_path_hdfs) -> None:
     LOGGER.info(f'File {destination_path_hdfs} uploaded to HDFS')
 
 
-def write_file_to_hdfs(current_stream_name, pyarrow_tables, records, pyarrow_schema: pa.Schema, config, files_created_list):
+def write_file_to_hdfs(current_stream_name, pyarrow_tables, records, pyarrow_schema: pa.Schema,
+                       config, files_created_list):
     # Converting the last records to pyarrow table
     if records[current_stream_name]:
         concat_tables(current_stream_name, pyarrow_tables, records, pyarrow_schema)
