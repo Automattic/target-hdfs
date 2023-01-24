@@ -7,8 +7,8 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Optional
 from multiprocessing import Queue, Process
+from typing import Optional
 
 import singer
 from jsonschema.validators import Draft4Validator
@@ -44,7 +44,7 @@ class TargetConfig:
     file_size_mb: Optional[int] = None
     file_prefix: Optional[str] = None
     filename_separator: str = '-'
-    max_queue_size: Optional[int] = None
+    max_queue_size: int = 1_000_000
 
     def __post_init__(self):
         self.set_compression_extension()
@@ -165,8 +165,8 @@ def persist_messages(messages, config: TargetConfig):
                 current_stream_name = stream_name
                 records[stream_name].append(record)
                 records_count[stream_name] += 1
-                # Update the pyarrow table on every 10000 records
-                if not len(records[current_stream_name]) % 10000:
+                # Update the pyarrow table on every 1000 records
+                if not len(records[current_stream_name]) % 1000:
                     concat_tables(current_stream_name, pyarrow_tables, records, pyarrow_schemas[current_stream_name])
 
                 # Write the file to HDFS if the file size is greater than the specified size or
@@ -217,7 +217,7 @@ def main():
             rows_per_file=config.get('rows_per_file'),
             partitions=config.get('partitions'),
             file_prefix=config.get('file_prefix'),
-            max_queue_size=config.get('max_queue_size'),
+            max_queue_size=config.get('max_queue_size', 1_000_000),
         )
     )
 

@@ -169,9 +169,9 @@ def concat_tables(current_stream_name: str, pyarrow_tables: Dict[str, pa.Table],
         pyarrow_tables[current_stream_name] = dataframe
     else:
         pyarrow_tables[current_stream_name] = pa.concat_tables([pyarrow_tables[current_stream_name], dataframe])
-    LOGGER.info(f'Database[{current_stream_name}] size: '
-                f'{bytes_to_mb(pyarrow_tables[current_stream_name].nbytes)} MB | '
-                f'{pyarrow_tables[current_stream_name].num_rows} rows')
+    LOGGER.debug(f'Pyarrow Table [{current_stream_name}] size: '
+                 f'{bytes_to_mb(pyarrow_tables[current_stream_name].nbytes)} MB | '
+                 f'{pyarrow_tables[current_stream_name].num_rows} rows')
 
 
 def upload_to_hdfs(local_file, destination_path_hdfs) -> None:
