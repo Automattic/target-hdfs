@@ -1,4 +1,5 @@
 import gc
+import json
 import tempfile
 from typing import List, Union, MutableMapping, Dict
 
@@ -52,7 +53,7 @@ def flatten(dictionary, flat_schema, parent_key='', sep='__'):
             if isinstance(value, MutableMapping):
                 items.update(flatten(value, flat_schema, new_key, sep=sep))
             elif new_key in flat_schema:
-                items[new_key] = str(value) if isinstance(value, list) else value
+                items[new_key] = json.dumps(value) if isinstance(value, list) else value
     return items
 
 

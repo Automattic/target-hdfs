@@ -34,7 +34,7 @@ class TestHelpers(TestCase):
             "key_1": 1,
             "key_2__key_3": 2,
             "key_2__key_4__key_5": 3,
-            "key_2__key_4__key_6": "['10', '11']",
+            "key_2__key_4__key_6": '["10", "11"]',
         }
 
         flat_schema = {
@@ -216,3 +216,29 @@ class TestHelpers(TestCase):
         # Test not separated folder with multiple partitions
         config = TargetConfig(hdfs_destination_path='/path/4/', streams_in_separate_folder=False, partitions='my_partition1=1/my_partition2=2')
         self.assertEqual('/path/4/my_partition1=1/my_partition2=2/my_stream-20230101_000000-000000.gz.parquet', config.generate_hdfs_path('my_stream'))
+
+    def test_flatten_array_fields(self):
+        in_dict = {
+            "int_array": [1, 2, 3],
+            "array_of_int_array": [1, 2, [3, 4]],
+            "array_of_mixed_types": ["a", {"b":"value"}, ["c", "d"]],
+            "string_array": ["a", "b", "c"],
+            "object_array": [{"int": 1}, {"string1": "aaa'aaa"}, {"string2": 'aaa"aaa'}, {"array": [1, 2, 3]}, {'true': True}, {'false': False}, {'null': None}],
+        }
+        expected = {
+            'int_array': '[1, 2, 3]',
+            'array_of_int_array': '[1, 2, [3, 4]]',
+            "array_of_mixed_types": '["a", {"b": "value"}, ["c", "d"]]',
+            'string_array': '["a", "b", "c"]',
+            'object_array': '[{"int": 1}, {"string1": "aaa\'aaa"}, {"string2": "aaa\\"aaa"}, {"array": [1, 2, 3]}, {"true": true}, {"false": false}, {"null": null}]'
+        }
+
+        flat_schema = {
+            "int_array": "array",
+            "array_of_int_array": "array",
+            "array_of_mixed_types": "array",
+            "string_array": ["null", "array"],
+            "object_array": "array",
+        }
+        output = flatten(in_dict, flat_schema)
+        self.assertEqual(expected, output)
