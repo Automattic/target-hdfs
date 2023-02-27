@@ -48,6 +48,7 @@ Note that, these compression methods have to be supported by `Pyarrow`, and at t
 the only compression modes available are: snappy (recommended), zstd, brotli and gzip. The library will check these, 
 and default to `gzip` if something else is provided.
 For an example of the configuration file, see [config.sample.json](config.sample.json).
+The `file_prefix` define a prefix to include in the file name when upload to HDFS.
 There is also an `streams_in_separate_folder` option to create each stream in a different folder, as these are expected to come in different schema.
 The `rows_per_file` and `file_size_mb` force a file to be saved every time the number of rows is reached or/and the pyarrow 
 dataframe size reach the file size (without the compression).

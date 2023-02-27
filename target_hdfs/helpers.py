@@ -1,7 +1,6 @@
 import gc
-import os
+import json
 import tempfile
-from datetime import datetime
 from typing import List, Union, MutableMapping, Dict
 
 import pyarrow as pa
@@ -9,6 +8,10 @@ import singer
 from pyarrow.parquet import ParquetWriter
 
 LOGGER = singer.get_logger()
+
+
+def bytes_to_mb(x):
+    return x / (1024 * 1024)
 
 
 def flatten(dictionary, flat_schema, parent_key='', sep='__'):
@@ -50,7 +53,7 @@ def flatten(dictionary, flat_schema, parent_key='', sep='__'):
             if isinstance(value, MutableMapping):
                 items.update(flatten(value, flat_schema, new_key, sep=sep))
             elif new_key in flat_schema:
-                items[new_key] = str(value) if isinstance(value, list) else value
+                items[new_key] = json.dumps(value) if isinstance(value, list) else value
     return items
 
 
@@ -159,17 +162,17 @@ def create_dataframe(list_dict: List[Dict], schema: pa.Schema):
     return pa.table(data).cast(schema)
 
 
-def concat_tables(current_stream_name: str, dataframes: Dict[str, pa.Table],
-                  records: Dict[str, List[Dict]], schema: pa.Schema):
+def concat_tables(current_stream_name: str, pyarrow_tables: Dict[str, pa.Table],
+                  records: Dict[str, List[Dict]], pyarrow_schema: pa.Schema):
     """Create a dataframe from records and concatenate with the existing one"""
-    dataframe = create_dataframe(records.pop(current_stream_name), schema)
-    if current_stream_name not in dataframes:
-        dataframes[current_stream_name] = dataframe
+    dataframe = create_dataframe(records.pop(current_stream_name), pyarrow_schema)
+    if current_stream_name not in pyarrow_tables:
+        pyarrow_tables[current_stream_name] = dataframe
     else:
-        dataframes[current_stream_name] = pa.concat_tables([dataframes[current_stream_name], dataframe])
-    LOGGER.debug(f'Database[{current_stream_name}] size: '
-                 f'{dataframes[current_stream_name].nbytes / 1024 / 1024} MB | '
-                 f'{dataframes[current_stream_name].num_rows} rows')
+        pyarrow_tables[current_stream_name] = pa.concat_tables([pyarrow_tables[current_stream_name], dataframe])
+    LOGGER.debug(f'Pyarrow Table [{current_stream_name}] size: '
+                 f'{bytes_to_mb(pyarrow_tables[current_stream_name].nbytes)} MB | '
+                 f'{pyarrow_tables[current_stream_name].num_rows} rows')
 
 
 def upload_to_hdfs(local_file, destination_path_hdfs) -> None:
@@ -184,36 +187,20 @@ def upload_to_hdfs(local_file, destination_path_hdfs) -> None:
     LOGGER.info(f'File {destination_path_hdfs} uploaded to HDFS')
 
 
-def write_file_to_hdfs(current_stream_name, dataframes, records, schema, config, files_created_list):
-    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S-%f')
-
+def write_file_to_hdfs(current_stream_name, pyarrow_tables, records, pyarrow_schema: pa.Schema,
+                       config, files_created_list):
     # Converting the last records to pyarrow table
     if records[current_stream_name]:
-        concat_tables(current_stream_name, dataframes, records, schema)
+        concat_tables(current_stream_name, pyarrow_tables, records, pyarrow_schema)
 
-    if current_stream_name in dataframes:
-        hdfs_path = generate_hdfs_path(current_stream_name, config.hdfs_destination_path,
-                                           config.streams_in_separate_folder, config.partitions)
-
+    if current_stream_name in pyarrow_tables:
         with tempfile.NamedTemporaryFile('wb') as tmp_file:
-            ParquetWriter(tmp_file.name, dataframes[current_stream_name].schema,
-                          compression=config.compression_method).write_table(dataframes[current_stream_name])
-            filename = f'{timestamp}{config.compression_extension}.parquet'
-            if not config.streams_in_separate_folder:
-                filename = f'{current_stream_name}{config.filename_separator}{filename}'
-            hdfs_file_path = os.path.join(hdfs_path, filename)
+            ParquetWriter(tmp_file.name, pyarrow_tables[current_stream_name].schema,
+                          compression=config.compression_method).write_table(pyarrow_tables[current_stream_name])
+            hdfs_file_path = config.generate_hdfs_path(current_stream_name)
             upload_to_hdfs(tmp_file.name, hdfs_file_path)
             files_created_list.append(hdfs_file_path)
 
         # explicit memory management. This can be useful when working on very large data groups
-        del dataframes[current_stream_name]
+        del pyarrow_tables[current_stream_name]
         gc.collect()
-
-
-def generate_hdfs_path(current_stream_name, hdfs_destination_path, streams_in_separate_folder, partitions):
-    hdfs_filepath = hdfs_destination_path
-    if streams_in_separate_folder:
-        hdfs_filepath = os.path.join(hdfs_filepath, current_stream_name)
-    if partitions:
-        hdfs_filepath = os.path.join(hdfs_filepath, partitions)
-    return hdfs_filepath

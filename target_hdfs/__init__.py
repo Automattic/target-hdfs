@@ -3,15 +3,18 @@ import io
 import json
 import os
 import sys
-from dataclasses import dataclass
-from multiprocessing import Queue, Process
 from collections import defaultdict
+from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
+from multiprocessing import Queue, Process
+from typing import Optional
 
 import singer
 from jsonschema.validators import Draft4Validator
 
-from .helpers import flatten, flatten_schema, concat_tables, write_file_to_hdfs, flatten_schema_to_pyarrow_schema
+from .helpers import flatten, flatten_schema, concat_tables, write_file_to_hdfs, flatten_schema_to_pyarrow_schema, \
+    bytes_to_mb
 
 _all__ = ['main']
 
@@ -30,16 +33,26 @@ EXTENSION_MAPPING = {
 }
 
 
+class UnsupportedCompressionMethod(Exception):
+    pass
+
+
+class ParseError(Exception):
+    pass
+
+
 @dataclass
 class TargetConfig:
     hdfs_destination_path: str
     compression_method: str = 'gzip'
     compression_extension: str = ''
     streams_in_separate_folder: bool = True
-    partitions: str = None
-    rows_per_file: int = -1
-    file_size_mb: int = -1
+    partitions: Optional[str] = None
+    rows_per_file: Optional[int] = None
+    file_size_mb: Optional[int] = None
+    file_prefix: Optional[str] = None
     filename_separator: str = '-'
+    max_queue_size: int = 1_000_000
 
     def __post_init__(self):
         self.set_compression_extension()
@@ -52,7 +65,24 @@ class TargetConfig:
             # The target is prepared to accept all the compression methods provided by the pandas module
             self.compression_extension = EXTENSION_MAPPING.get(self.compression_method.upper())
             if self.compression_extension is None:
-                raise Exception('Unsupported compression method.')
+                raise UnsupportedCompressionMethod('Unsupported compression method.')
+
+    def generate_file_name(self, stream_name):
+        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S-%f')
+        file_name = f'{timestamp}{self.compression_extension}.parquet'
+        if self.file_prefix:
+            file_name = f'{self.file_prefix}-{file_name}'
+        if not self.streams_in_separate_folder:
+            file_name = f'{stream_name}{self.filename_separator}{file_name}'
+        return file_name
+
+    def generate_hdfs_path(self, stream_name):
+        hdfs_filepath = self.hdfs_destination_path
+        if self.streams_in_separate_folder:
+            hdfs_filepath = os.path.join(hdfs_filepath, stream_name)
+        if self.partitions:
+            hdfs_filepath = os.path.join(hdfs_filepath, self.partitions)
+        return os.path.join(hdfs_filepath, self.generate_file_name(stream_name))
 
 
 class MessageType(Enum):
@@ -87,7 +117,7 @@ def persist_messages(messages, config: TargetConfig):
                 try:
                     message = singer.parse_message(message).asdict()
                 except json.JSONDecodeError as exc:
-                    raise Exception(f'Unable to parse:\n{message}') from exc
+                    raise ParseError(f'Unable to parse:\n{message}') from exc
 
                 message_type = message['type']
                 if message_type == 'RECORD':
@@ -125,7 +155,7 @@ def persist_messages(messages, config: TargetConfig):
 
         records = defaultdict(list)
         records_count = defaultdict(int)
-        dataframes = {}
+        pyarrow_tables = {}
         pyarrow_schemas = {}
         more_messages = True
 
@@ -133,34 +163,46 @@ def persist_messages(messages, config: TargetConfig):
             (message_type, stream_name, record) = receiver.get()
             if message_type == MessageType.RECORD:
                 if stream_name != current_stream_name and current_stream_name is not None:
-                    write_file(current_stream_name, dataframes, records, pyarrow_schemas, files_created)
+                    # Write files to HDFS if the stream has changed
+                    write_file_to_hdfs(current_stream_name=current_stream_name,
+                                       pyarrow_tables=pyarrow_tables,
+                                       records=records,
+                                       pyarrow_schema=pyarrow_schemas[current_stream_name],
+                                       config=config,
+                                       files_created_list=files_created)
                 current_stream_name = stream_name
                 records[stream_name].append(record)
                 records_count[stream_name] += 1
                 # Update the pyarrow table on every 1000 records
                 if not len(records[current_stream_name]) % 1000:
-                    concat_tables(current_stream_name, dataframes, records, pyarrow_schemas[current_stream_name])
-                    if dataframes[current_stream_name].nbytes / (1024 * 1024) >= config.file_size_mb > 0:
-                        write_file(current_stream_name, dataframes, records,pyarrow_schemas, files_created)
-                if (config.rows_per_file > 0) and (not records_count[current_stream_name] % config.rows_per_file):
-                    write_file(current_stream_name, dataframes, records, pyarrow_schemas, files_created)
+                    concat_tables(current_stream_name, pyarrow_tables, records, pyarrow_schemas[current_stream_name])
+
+                # Write the file to HDFS if the file size is greater than the specified size or
+                # if the number of rows is greater than the specified number
+                if ((config.file_size_mb and current_stream_name in pyarrow_tables and
+                     bytes_to_mb(pyarrow_tables[current_stream_name].nbytes) >= config.file_size_mb > 0)
+                        or (config.rows_per_file and not records_count[current_stream_name] % config.rows_per_file)):
+                    write_file_to_hdfs(current_stream_name=current_stream_name,
+                                       pyarrow_tables=pyarrow_tables,
+                                       records=records,
+                                       pyarrow_schema=pyarrow_schemas[current_stream_name],
+                                       config=config,
+                                       files_created_list=files_created)
             elif message_type == MessageType.SCHEMA:
                 pyarrow_schemas[stream_name] = flatten_schema_to_pyarrow_schema(record)
             elif message_type == MessageType.EOF:
-                write_file(current_stream_name, dataframes, records, pyarrow_schemas, files_created)
+                # Writing the last file to HDFS
+                write_file_to_hdfs(current_stream_name=current_stream_name,
+                                   pyarrow_tables=pyarrow_tables,
+                                   records=records,
+                                   pyarrow_schema=pyarrow_schemas[current_stream_name],
+                                   config=config,
+                                   files_created_list=files_created)
                 LOGGER.info(f'Wrote {len(files_created)} files')
                 LOGGER.debug(f'Wrote {files_created} files')
                 more_messages = False
 
-    def write_file(current_stream_name, dataframes, records, pyarrow_schemas, files_created_list):
-        write_file_to_hdfs(current_stream_name=current_stream_name,
-                           dataframes=dataframes,
-                           records=records,
-                           schema=pyarrow_schemas[current_stream_name],
-                           config=config,
-                           files_created_list=files_created_list)
-
-    messages_queue = Queue()
+    messages_queue = Queue() if not config.max_queue_size else Queue(config.max_queue_size)
     process_consumer = Process(target=consumer, args=(messages_queue,),)
     process_consumer.start()
     state = producer(messages, messages_queue)
@@ -179,9 +221,11 @@ def main():
             hdfs_destination_path=config.get('hdfs_destination_path', 'output'),
             compression_method=config.get('compression_method', 'gzip'),
             streams_in_separate_folder=config.get('streams_in_separate_folder', True),
-            file_size_mb=config.get('file_size_mb', -1),
-            rows_per_file=config.get('rows_per_file', -1),
-            partitions=config.get('partitions')
+            file_size_mb=config.get('file_size_mb'),
+            rows_per_file=config.get('rows_per_file'),
+            partitions=config.get('partitions'),
+            file_prefix=config.get('file_prefix'),
+            max_queue_size=config.get('max_queue_size', 1_000_000),
         )
     )
 
