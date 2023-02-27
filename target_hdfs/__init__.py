@@ -33,6 +33,14 @@ EXTENSION_MAPPING = {
 }
 
 
+class UnsupportedCompressionMethod(Exception):
+    pass
+
+
+class ParseError(Exception):
+    pass
+
+
 @dataclass
 class TargetConfig:
     hdfs_destination_path: str
@@ -57,7 +65,7 @@ class TargetConfig:
             # The target is prepared to accept all the compression methods provided by the pandas module
             self.compression_extension = EXTENSION_MAPPING.get(self.compression_method.upper())
             if self.compression_extension is None:
-                raise Exception('Unsupported compression method.')
+                raise UnsupportedCompressionMethod('Unsupported compression method.')
 
     def generate_file_name(self, stream_name):
         timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S-%f')
@@ -109,7 +117,7 @@ def persist_messages(messages, config: TargetConfig):
                 try:
                     message = singer.parse_message(message).asdict()
                 except json.JSONDecodeError as exc:
-                    raise Exception(f'Unable to parse:\n{message}') from exc
+                    raise ParseError(f'Unable to parse:\n{message}') from exc
 
                 message_type = message['type']
                 if message_type == 'RECORD':
