@@ -1,5 +1,6 @@
 import gc
 import json
+import os
 import tempfile
 from typing import List, Union, MutableMapping, Dict
 
@@ -170,7 +171,7 @@ def concat_tables(current_stream_name: str, pyarrow_tables: Dict[str, pa.Table],
         pyarrow_tables[current_stream_name] = dataframe
     else:
         pyarrow_tables[current_stream_name] = pa.concat_tables([pyarrow_tables[current_stream_name], dataframe])
-    LOGGER.debug(f'Pyarrow Table [{current_stream_name}] size: '
+    LOGGER.info(f'Pyarrow Table [{current_stream_name}] size: '
                  f'{bytes_to_mb(pyarrow_tables[current_stream_name].nbytes)} MB | '
                  f'{pyarrow_tables[current_stream_name].num_rows} rows')
 
@@ -197,6 +198,7 @@ def write_file_to_hdfs(current_stream_name, pyarrow_tables, records, pyarrow_sch
         with tempfile.NamedTemporaryFile('wb') as tmp_file:
             ParquetWriter(tmp_file.name, pyarrow_tables[current_stream_name].schema,
                           compression=config.compression_method).write_table(pyarrow_tables[current_stream_name])
+            LOGGER.info(f'File size {bytes_to_mb(os.stat(tmp_file.name).st_size)} MB')
             hdfs_file_path = config.generate_hdfs_path(current_stream_name)
             upload_to_hdfs(tmp_file.name, hdfs_file_path)
             files_created_list.append(hdfs_file_path)
