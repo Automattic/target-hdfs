@@ -173,21 +173,21 @@ def persist_messages(messages, config: TargetConfig):
                 current_stream_name = stream_name
                 records[stream_name].append(record)
                 records_count[stream_name] += 1
-                # Update the pyarrow table on every 1000 records
-                if not len(records[current_stream_name]) % 1000:
+                # Update the pyarrow table on every 10000 records
+                if not len(records[current_stream_name]) % 10000:
                     concat_tables(current_stream_name, pyarrow_tables, records, pyarrow_schemas[current_stream_name])
 
-                # Write the file to HDFS if the file size is greater than the specified size or
-                # if the number of rows is greater than the specified number
-                if ((config.file_size_mb and current_stream_name in pyarrow_tables and
-                     bytes_to_mb(pyarrow_tables[current_stream_name].nbytes) >= config.file_size_mb > 0)
-                        or (config.rows_per_file and not records_count[current_stream_name] % config.rows_per_file)):
-                    write_file_to_hdfs(current_stream_name=current_stream_name,
-                                       pyarrow_tables=pyarrow_tables,
-                                       records=records,
-                                       pyarrow_schema=pyarrow_schemas[current_stream_name],
-                                       config=config,
-                                       files_created_list=files_created)
+                    # Write the file to HDFS if the file size is greater than the specified size or
+                    # if the number of rows is greater than the specified number
+                    if ((config.file_size_mb and current_stream_name in pyarrow_tables and
+                         bytes_to_mb(pyarrow_tables[current_stream_name].nbytes) >= config.file_size_mb > 0)
+                            or (config.rows_per_file and not records_count[current_stream_name] % config.rows_per_file)):
+                        write_file_to_hdfs(current_stream_name=current_stream_name,
+                                           pyarrow_tables=pyarrow_tables,
+                                           records=records,
+                                           pyarrow_schema=pyarrow_schemas[current_stream_name],
+                                           config=config,
+                                           files_created_list=files_created)
             elif message_type == MessageType.SCHEMA:
                 pyarrow_schemas[stream_name] = flatten_schema_to_pyarrow_schema(record)
             elif message_type == MessageType.EOF:
