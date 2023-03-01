@@ -177,7 +177,7 @@ def concat_tables(current_stream_name: str, pyarrow_tables: Dict[str, pa.Table],
 
 def upload_to_hdfs(local_file, destination_path_hdfs) -> None:
     """Upload a local file to HDFS using RPC"""
-    LOGGER.debug(f'Uploading file to HDFS: {destination_path_hdfs} ')
+    LOGGER.info(f'Uploading file to HDFS: {destination_path_hdfs} ')
     pa.fs.copy_files(
         local_file,
         destination_path_hdfs,
