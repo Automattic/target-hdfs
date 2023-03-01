@@ -175,14 +175,14 @@ def persist_messages(messages, config: TargetConfig):
                 records[stream_name].append(record)
                 records_count[stream_name] += 1
                 # Update the pyarrow table on every 1000 records
-                if not len(records[current_stream_name]) % 1000:
+                if not records_count[stream_name] % 1000:
                     concat_tables(current_stream_name, pyarrow_tables, records, pyarrow_schemas[current_stream_name])
 
                     # Checking file size on every 10000 records
-                    if config.file_size_mb and not len(records[current_stream_name]) % 10000:
+                    if config.file_size_mb and not records_count[stream_name] % 10000:
                         LOGGER.info(f'Pyarrow Table [{current_stream_name}] size: '
-                                     f'{bytes_to_mb(pyarrow_tables[current_stream_name].nbytes)} MB | '
-                                     f'{pyarrow_tables[current_stream_name].num_rows} rows')
+                                    f'{bytes_to_mb(pyarrow_tables[current_stream_name].nbytes)} MB | '
+                                    f'{pyarrow_tables[current_stream_name].num_rows} rows')
                         # Write the file to HDFS if the file size is greater than the specified size
                         if bytes_to_mb(pyarrow_tables[current_stream_name].nbytes) >= config.file_size_mb > 0:
                             write_file_for_current_stream = True
