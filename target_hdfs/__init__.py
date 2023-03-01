@@ -180,7 +180,7 @@ def persist_messages(messages, config: TargetConfig):
 
                     # Checking file size on every 10000 records
                     if config.file_size_mb and not len(records[current_stream_name]) % 10000:
-                        LOGGER.debug(f'Pyarrow Table [{current_stream_name}] size: '
+                        LOGGER.info(f'Pyarrow Table [{current_stream_name}] size: '
                                      f'{bytes_to_mb(pyarrow_tables[current_stream_name].nbytes)} MB | '
                                      f'{pyarrow_tables[current_stream_name].num_rows} rows')
                         # Write the file to HDFS if the file size is greater than the specified size
