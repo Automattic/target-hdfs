@@ -197,7 +197,7 @@ def persist_messages(messages, config: TargetConfig):
                 write_file_for_current_stream = True
                 more_messages = False
 
-            if write_file_for_current_stream:
+            if write_file_for_current_stream and current_stream_name:
                 write_file_to_hdfs(current_stream_name=current_stream_name,
                                    pyarrow_tables=pyarrow_tables,
                                    records=records,
