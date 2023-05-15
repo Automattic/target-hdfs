@@ -193,8 +193,8 @@ def persist_messages(messages, config: TargetConfig):
             elif message_type == MessageType.SCHEMA:
                 pyarrow_schemas[stream_name] = flatten_schema_to_pyarrow_schema(record)
             elif message_type == MessageType.EOF:
-                # Writing the last file to HDFS
-                write_file_for_current_stream = True
+                # Writing the last file to HDFS if there is any record for the current stream
+                write_file_for_current_stream = bool(current_stream_name)
                 more_messages = False
 
             if write_file_for_current_stream:
