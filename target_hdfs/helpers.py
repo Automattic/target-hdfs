@@ -1,6 +1,7 @@
 import gc
 import json
 import tempfile
+from collections import defaultdict
 from typing import List, Union, MutableMapping, Dict
 
 import pyarrow as pa
@@ -93,17 +94,31 @@ def flatten_schema(dictionary, parent_key='', sep='__'):
              'key_2__key_4__key_6': ['null', 'array']
         }
     """
-    items = {}
+    items = defaultdict(list)
     if dictionary:
         for key, value in dictionary.items():
             new_key = parent_key + sep + key if parent_key else key
             if 'type' not in value:
-                LOGGER.warning(f'SCHEMA with limited support on field {key}: {value}')
-            if 'object' in value.get('type', []):
-                items.update(flatten_schema(value.get('properties'), new_key, sep=sep))
-            else:
-                items[new_key] = value.get('type', None)
+                if 'anyOf' in value:
+                    if isinstance(value['anyOf'], list):
+                        for any_of_type in value['anyOf']:
+                            extract_type(items, new_key, sep, any_of_type)
+                else:
+                    LOGGER.warning(f'SCHEMA with limited support on field {key}: {value}')
+
+            extract_type(items, new_key, sep, value)
     return items
+
+
+def extract_type(items, new_key, sep, value):
+    datatypes = value.get('type', [])
+    if 'object' in datatypes:
+        items.update(flatten_schema(value.get('properties'), new_key, sep=sep))
+    else:
+        if isinstance(datatypes, list):
+            items[new_key].extend(datatypes)
+        else:
+            items[new_key].append(datatypes)
 
 
 FIELD_TYPE_TO_PYARROW = {
