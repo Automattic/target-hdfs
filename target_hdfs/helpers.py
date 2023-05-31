@@ -115,10 +115,7 @@ def extract_type(items, new_key, sep, value):
     if 'object' in datatypes:
         items.update(flatten_schema(value.get('properties'), new_key, sep=sep))
     else:
-        if isinstance(datatypes, list):
-            items[new_key].extend(datatypes)
-        else:
-            items[new_key].append(datatypes)
+        items[new_key].extend(datatypes if isinstance(datatypes, list) else [datatypes])
 
 
 FIELD_TYPE_TO_PYARROW = {
