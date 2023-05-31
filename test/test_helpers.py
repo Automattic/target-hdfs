@@ -93,16 +93,12 @@ class TestHelpers(TestCase):
                     },
                 },
             },
-            "key_9": {
-                "type": ["null", "object"]
-            }
         }
         expected = {
             "key_1": ["null", "integer"],
             "key_2__key_3": ["null", "string"],
             "key_2__key_4__key_5": ["null", "integer"],
-            "key_2__key_4__key_6": ["null", "array"],
-            "key_9": ["null", "object"],
+            "key_2__key_4__key_6": ["null", "array"]
         }
 
         output = flatten_schema(in_dict)

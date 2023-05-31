@@ -112,17 +112,19 @@ def flatten_schema(dictionary, parent_key='', sep='__'):
 
 def extract_type(items, new_key, sep, value):
     datatypes = value.get('type', [])
-    if 'object' in datatypes and 'properties' in value:
-        items.update(flatten_schema(value['properties'], new_key, sep=sep))
+    if 'object' in datatypes:
+        items.update(flatten_schema(value.get('properties'), new_key, sep=sep))
     else:
-        items[new_key].extend(datatypes if isinstance(datatypes, list) else [datatypes])
+        if isinstance(datatypes, list):
+            items[new_key].extend(datatypes)
+        else:
+            items[new_key].append(datatypes)
 
 
 FIELD_TYPE_TO_PYARROW = {
     'BOOLEAN': pa.bool_(),
     'STRING': pa.string(),
     'ARRAY': pa.string(),
-    'OBJECT': pa.string(),
     '': pa.string(),  # string type will be considered as default
     'INTEGER': pa.int64(),
     'NUMBER': pa.float64()
