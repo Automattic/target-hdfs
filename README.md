@@ -54,7 +54,6 @@ The `rows_per_file` and `file_size_mb` force a file to be saved every time the n
 dataframe size reach the file size (without the compression).
 The `partitions` config is an option to save the data in one or more partitions (e.g. `sync_ymd=20230101` or `sync_year=2023/sync_month=01/sync_day=01`).
 To run `target-hdfs` with the configuration file, use this command:
-The `force_header_snake_case` config convert all the fields in the header to snake case in lower case (e.g. `Key 1 > #1` to `key_1_1`), it's disable by default.
 
 ```bash
 ~/.virtualenvs/tap-exchangeratesapi/bin/tap-exchangeratesapi | ~/.virtualenvs/target-hdfs/bin/target-hdfs -c config.json

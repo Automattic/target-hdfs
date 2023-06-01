@@ -53,7 +53,6 @@ class TargetConfig:
     file_prefix: Optional[str] = None
     filename_separator: str = '-'
     max_queue_size: int = 1_000_000
-    force_header_snake_case: bool = False
 
     def __post_init__(self):
         self.set_compression_extension()
@@ -177,8 +176,7 @@ def persist_messages(messages, config: TargetConfig):
                 records_count[stream_name] += 1
                 # Update the pyarrow table on every 1000 records
                 if not records_count[stream_name] % 1000:
-                    concat_tables(current_stream_name, pyarrow_tables, records, pyarrow_schemas[current_stream_name],
-                                  config.force_header_snake_case)
+                    concat_tables(current_stream_name, pyarrow_tables, records, pyarrow_schemas[current_stream_name])
 
                     # Checking file size on every 10000 records
                     if config.file_size_mb and not records_count[stream_name] % 10000:
@@ -234,7 +232,6 @@ def main():
             partitions=config.get('partitions'),
             file_prefix=config.get('file_prefix'),
             max_queue_size=config.get('max_queue_size', 1_000_000),
-            force_header_snake_case=config.get('force_header_snake_case', False)
         )
     )
 
