@@ -1,5 +1,4 @@
 from datetime import datetime
-from pprint import pprint
 from unittest import TestCase, mock
 from unittest.mock import patch
 
