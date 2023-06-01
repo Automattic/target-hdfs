@@ -182,9 +182,37 @@ class TestHelpers(TestCase):
             pa.field("key_2__key_4__key_5", pa.int64(), True)
         ])
 
-        df = create_dataframe(input_data, schema)
+        df = create_dataframe(input_data, schema, False)
         self.assertEqual(sorted(df.column_names), sorted(schema.names))
         for field in schema:
+            self.assertEqual(df.schema.field(field.name).type, field.type)
+        self.assertEqual(df.num_rows, 1)
+
+    def test_create_dataframe_camelcase(self):
+        input_data = [{
+            "key 1": 1,
+            "Key 2 > key 4 > key_5": 3,
+            "key_2 # KEY_3": 2,
+            "key_2__key 4##key_6": "['10', '11']",
+        }]
+
+        input_schema = pa.schema([
+            pa.field("key 1", pa.int64(), False),
+            pa.field("key_2__key 4##key_6", pa.string(), False),
+            pa.field("key_2 # KEY_3", pa.string(), True),
+            pa.field("Key 2 > key 4 > key_5", pa.int64(), True)
+        ])
+
+        expected_schema = pa.schema([
+            pa.field("key_1", pa.int64(), False),
+            pa.field("key_2__key_4_key_6", pa.string(), False),
+            pa.field("key_2_key_3", pa.string(), True),
+            pa.field("key_2_key_4_key_5", pa.int64(), True)
+        ])
+
+        df = create_dataframe(input_data, input_schema, True)
+        self.assertEqual(sorted(df.column_names), sorted(expected_schema.names))
+        for field in expected_schema:
             self.assertEqual(df.schema.field(field.name).type, field.type)
         self.assertEqual(df.num_rows, 1)
 

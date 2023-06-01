@@ -7,6 +7,7 @@ from typing import List, Union, MutableMapping, Dict
 import pyarrow as pa
 import singer
 from pyarrow.parquet import ParquetWriter
+import re
 
 LOGGER = singer.get_logger()
 
@@ -168,16 +169,24 @@ def flatten_schema_to_pyarrow_schema(flatten_schema_dictionary) -> pa.Schema:
     )
 
 
-def create_dataframe(list_dict: List[Dict], schema: pa.Schema):
+def create_dataframe(list_dict: List[Dict], schema: pa.Schema, force_header_snake_case: bool):
     """"Create a pyarrow Table from a python list of dict"""
-    data = {f: [row.get(f) for row in list_dict] for f in schema.names}
-    return pa.table(data).cast(schema)
+    data = {(f if not force_header_snake_case else convert_to_snakecase(f)):
+                [row.get(f) for row in list_dict] for f in schema.names}
+    pq_table = pa.table(data)
+    if force_header_snake_case:
+        schema = pa.schema([(convert_to_snakecase(field.name), field.type, field.nullable) for field in schema])
+    return pq_table.cast(schema)
+
+
+def convert_to_snakecase(string):
+    return re.sub(r'\W+', '_', string).lower()
 
 
 def concat_tables(current_stream_name: str, pyarrow_tables: Dict[str, pa.Table],
-                  records: Dict[str, List[Dict]], pyarrow_schema: pa.Schema):
+                  records: Dict[str, List[Dict]], pyarrow_schema: pa.Schema, force_header_snake_case: bool):
     """Create a dataframe from records and concatenate with the existing one"""
-    dataframe = create_dataframe(records.pop(current_stream_name), pyarrow_schema)
+    dataframe = create_dataframe(records.pop(current_stream_name), pyarrow_schema, force_header_snake_case)
     if current_stream_name not in pyarrow_tables:
         pyarrow_tables[current_stream_name] = dataframe
     else:
@@ -201,7 +210,7 @@ def write_file_to_hdfs(current_stream_name, pyarrow_tables, records, pyarrow_sch
                        config, files_created_list):
     # Converting the last records to pyarrow table
     if records[current_stream_name]:
-        concat_tables(current_stream_name, pyarrow_tables, records, pyarrow_schema)
+        concat_tables(current_stream_name, pyarrow_tables, records, pyarrow_schema, config.force_header_snake_case)
 
     if current_stream_name in pyarrow_tables:
         with tempfile.NamedTemporaryFile('wb') as tmp_file:
