@@ -3,7 +3,7 @@
 from setuptools import setup
 
 setup(name='target-hdfs',
-      version='0.0.1',
+      version='0.0.4',
       description='Singer.io target for writing parquet files in HDFS',
       author='Joao Amaral',
       url='https://singer.io',
