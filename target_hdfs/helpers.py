@@ -99,10 +99,9 @@ def flatten_schema(dictionary, parent_key='', sep='__'):
         for key, value in dictionary.items():
             new_key = parent_key + sep + key if parent_key else key
             if 'type' not in value:
-                if 'anyOf' in value:
-                    if isinstance(value['anyOf'], list):
-                        for any_of_type in value['anyOf']:
-                            extract_type(items, new_key, sep, any_of_type)
+                if 'anyOf' in value and isinstance(value['anyOf'], list):
+                    for any_of_type in value['anyOf']:
+                        extract_type(items, new_key, sep, any_of_type)
                 else:
                     LOGGER.warning(f'SCHEMA with limited support on field {key}: {value}')
 
