@@ -8,13 +8,18 @@ import logging
 import pytest
 
 from target_hdfs import TargetConfig
-from target_hdfs.helpers import flatten, flatten_schema, flatten_schema_to_pyarrow_schema, create_dataframe
+from target_hdfs.helpers import (
+    flatten,
+    flatten_schema,
+    flatten_schema_to_pyarrow_schema,
+    create_dataframe,
+)
 
 
 class TestHelpers(TestCase):
     def setUp(self):
         """Mocking datetime"""
-        self.datetime_patcher = patch('target_hdfs.datetime')
+        self.datetime_patcher = patch("target_hdfs.datetime")
         self.mock_datetime = self.datetime_patcher.start()
         self.mock_datetime.utcnow = mock.Mock(return_value=datetime(2023, 1, 1))
 
@@ -41,7 +46,7 @@ class TestHelpers(TestCase):
             "key_1": "integer",
             "key_2__key_3": ["null", "integer"],
             "key_2__key_4__key_5": ["null", "integer"],
-            "key_2__key_4__key_6": "string"
+            "key_2__key_4__key_6": "string",
         }
         output = flatten(in_dict, flat_schema)
         self.assertEqual(output, expected)
@@ -62,7 +67,7 @@ class TestHelpers(TestCase):
             "key_1": "integer",
             "key_2__key_3": ["null", "integer"],
             "key_2__key_4__key_5": ["null", "integer"],
-            "key_2__key_4__key_6": "string"
+            "key_2__key_4__key_6": "string",
         }
         output = flatten(in_dict, flat_schema)
         self.assertEqual(output, expected)
@@ -97,7 +102,7 @@ class TestHelpers(TestCase):
             "key_1": ["null", "integer"],
             "key_2__key_3": ["null", "string"],
             "key_2__key_4__key_5": ["null", "integer"],
-            "key_2__key_4__key_6": ["null", "array"]
+            "key_2__key_4__key_6": ["null", "array"],
         }
 
         output = flatten_schema(in_dict)
@@ -118,14 +123,16 @@ class TestHelpers(TestCase):
             "int": ["integer"],
             "string_date": ["string"],
             "string": ["string"],
-            "anyOf": ['null', 'string'],
+            "anyOf": ["null", "string"],
             "int_null": ["null", "integer"],
         }
 
         with self._caplog.at_level(logging.WARNING):
             output = flatten_schema(in_dict)
             for record in self._caplog.records:
-                self.assertIn("SCHEMA with limited support on field anyOf", record.message)
+                self.assertIn(
+                    "SCHEMA with limited support on field anyOf", record.message
+                )
         self.assertEqual(output, expected)
 
     def test_flatten_schema_empty(self):
@@ -145,17 +152,19 @@ class TestHelpers(TestCase):
             "page_views_avg": ["number", "null"],
         }
 
-        expected = pa.schema([
-            pa.field("id", pa.int64(), False),
-            pa.field("created_at", pa.string(), False),
-            pa.field("updated_at", pa.string(), False),
-            pa.field("email", pa.string(), False),
-            pa.field("email_list", pa.string(), True),
-            pa.field("external_created_at", pa.int64(), True),
-            pa.field("page_views_count", pa.int64(), False),
-            pa.field("only_null_datatype", pa.string(), True),
-            pa.field("page_views_avg", pa.float64(), True),
-        ])
+        expected = pa.schema(
+            [
+                pa.field("id", pa.int64(), False),
+                pa.field("created_at", pa.string(), False),
+                pa.field("updated_at", pa.string(), False),
+                pa.field("email", pa.string(), False),
+                pa.field("email_list", pa.string(), True),
+                pa.field("external_created_at", pa.int64(), True),
+                pa.field("page_views_count", pa.int64(), False),
+                pa.field("only_null_datatype", pa.string(), True),
+                pa.field("page_views_avg", pa.float64(), True),
+            ]
+        )
         result = flatten_schema_to_pyarrow_schema(in_dict)
 
         self.assertEqual(expected, result)
@@ -167,19 +176,23 @@ class TestHelpers(TestCase):
             flatten_schema_to_pyarrow_schema(in_dict)
 
     def test_create_dataframe(self):
-        input_data = [{
-            "key_1": 1,
-            "key_2__key_4__key_5": 3,
-            "key_2__key_3": 2,
-            "key_2__key_4__key_6": "['10', '11']",
-        }]
+        input_data = [
+            {
+                "key_1": 1,
+                "key_2__key_4__key_5": 3,
+                "key_2__key_3": 2,
+                "key_2__key_4__key_6": "['10', '11']",
+            }
+        ]
 
-        schema = pa.schema([
-            pa.field("key_1", pa.int64(), False),
-            pa.field("key_2__key_4__key_6", pa.string(), False),
-            pa.field("key_2__key_3", pa.string(), True),
-            pa.field("key_2__key_4__key_5", pa.int64(), True)
-        ])
+        schema = pa.schema(
+            [
+                pa.field("key_1", pa.int64(), False),
+                pa.field("key_2__key_4__key_6", pa.string(), False),
+                pa.field("key_2__key_3", pa.string(), True),
+                pa.field("key_2__key_4__key_5", pa.int64(), True),
+            ]
+        )
 
         df = create_dataframe(input_data, schema)
         self.assertEqual(sorted(df.column_names), sorted(schema.names))
@@ -189,48 +202,94 @@ class TestHelpers(TestCase):
 
     def test_generate_file_name(self):
         # Test separated folder
-        config = TargetConfig(hdfs_destination_path='', streams_in_separate_folder=True)
-        self.assertEqual('20230101_000000-000000.gz.parquet', config.generate_file_name('my_stream'))
+        config = TargetConfig(hdfs_destination_path="", streams_in_separate_folder=True)
+        self.assertEqual(
+            "20230101_000000-000000.gz.parquet", config.generate_file_name("my_stream")
+        )
 
         # Test not separated folder
-        config = TargetConfig(hdfs_destination_path='', streams_in_separate_folder=False)
-        self.assertEqual('my_stream-20230101_000000-000000.gz.parquet', config.generate_file_name('my_stream'))
+        config = TargetConfig(
+            hdfs_destination_path="", streams_in_separate_folder=False
+        )
+        self.assertEqual(
+            "my_stream-20230101_000000-000000.gz.parquet",
+            config.generate_file_name("my_stream"),
+        )
 
         # Test not separated folder with prefix
-        config = TargetConfig(hdfs_destination_path='', streams_in_separate_folder=False, file_prefix='scope1')
-        self.assertEqual('my_stream-scope1-20230101_000000-000000.gz.parquet', config.generate_file_name('my_stream'))
+        config = TargetConfig(
+            hdfs_destination_path="",
+            streams_in_separate_folder=False,
+            file_prefix="scope1",
+        )
+        self.assertEqual(
+            "my_stream-scope1-20230101_000000-000000.gz.parquet",
+            config.generate_file_name("my_stream"),
+        )
 
     def test_generate_hdfs_path(self):
         # Test separated folder
-        config = TargetConfig(hdfs_destination_path='/path/1/', streams_in_separate_folder=True)
-        self.assertEqual('/path/1/my_stream/20230101_000000-000000.gz.parquet', config.generate_hdfs_path('my_stream'))
+        config = TargetConfig(
+            hdfs_destination_path="/path/1/", streams_in_separate_folder=True
+        )
+        self.assertEqual(
+            "/path/1/my_stream/20230101_000000-000000.gz.parquet",
+            config.generate_hdfs_path("my_stream"),
+        )
 
         # Test not separated folder
-        config = TargetConfig(hdfs_destination_path='/path/2/', streams_in_separate_folder=False)
-        self.assertEqual('/path/2/my_stream-20230101_000000-000000.gz.parquet', config.generate_hdfs_path('my_stream'))
+        config = TargetConfig(
+            hdfs_destination_path="/path/2/", streams_in_separate_folder=False
+        )
+        self.assertEqual(
+            "/path/2/my_stream-20230101_000000-000000.gz.parquet",
+            config.generate_hdfs_path("my_stream"),
+        )
 
         # Test separated folder with partition
-        config = TargetConfig(hdfs_destination_path='/path/3/', streams_in_separate_folder=True, partitions='my_partition=123')
-        self.assertEqual('/path/3/my_stream/my_partition=123/20230101_000000-000000.gz.parquet', config.generate_hdfs_path('my_stream'))
+        config = TargetConfig(
+            hdfs_destination_path="/path/3/",
+            streams_in_separate_folder=True,
+            partitions="my_partition=123",
+        )
+        self.assertEqual(
+            "/path/3/my_stream/my_partition=123/20230101_000000-000000.gz.parquet",
+            config.generate_hdfs_path("my_stream"),
+        )
 
         # Test not separated folder with multiple partitions
-        config = TargetConfig(hdfs_destination_path='/path/4/', streams_in_separate_folder=False, partitions='my_partition1=1/my_partition2=2')
-        self.assertEqual('/path/4/my_partition1=1/my_partition2=2/my_stream-20230101_000000-000000.gz.parquet', config.generate_hdfs_path('my_stream'))
+        config = TargetConfig(
+            hdfs_destination_path="/path/4/",
+            streams_in_separate_folder=False,
+            partitions="my_partition1=1/my_partition2=2",
+        )
+        self.assertEqual(
+            "/path/4/my_partition1=1/my_partition2=2/my_stream-20230101_000000-000000.gz.parquet",
+            config.generate_hdfs_path("my_stream"),
+        )
 
     def test_flatten_array_fields(self):
         in_dict = {
             "int_array": [1, 2, 3],
             "array_of_int_array": [1, 2, [3, 4]],
-            "array_of_mixed_types": ["a", {"b":"value"}, ["c", "d"]],
+            "array_of_mixed_types": ["a", {"b": "value"}, ["c", "d"]],
             "string_array": ["a", "b", "c"],
-            "object_array": [{"int": 1}, {"string1": "aaa'aaa"}, {"string2": 'aaa"aaa'}, {"array": [1, 2, 3]}, {'true': True}, {'false': False}, {'null': None}],
+            "object_array": [
+                {"int": 1},
+                {"string1": "aaa'aaa"},
+                {"string2": 'aaa"aaa'},
+                {"array": [1, 2, 3]},
+                {"true": True},
+                {"false": False},
+                {"null": None},
+            ],
         }
         expected = {
-            'int_array': '[1, 2, 3]',
-            'array_of_int_array': '[1, 2, [3, 4]]',
+            "int_array": "[1, 2, 3]",
+            "array_of_int_array": "[1, 2, [3, 4]]",
             "array_of_mixed_types": '["a", {"b": "value"}, ["c", "d"]]',
-            'string_array': '["a", "b", "c"]',
-            'object_array': '[{"int": 1}, {"string1": "aaa\'aaa"}, {"string2": "aaa\\"aaa"}, {"array": [1, 2, 3]}, {"true": true}, {"false": false}, {"null": null}]'
+            "string_array": '["a", "b", "c"]',
+            "object_array": '[{"int": 1}, {"string1": "aaa\'aaa"}, {"string2": "aaa\\"aaa"}, {"array": [1, 2, 3]}, {"true": true}, {"false": false}, {"null": null}]',
         }
 
         flat_schema = {
