@@ -95,12 +95,12 @@ INPUT_MESSAGE_3 = """\
 EXPECTED_DF_3 = pd.DataFrame(
     [
         {
-            "field1__field2__field3": "test_field3",
-            "field1__field2__field4": "test_field4",
-            "field2__field3": None,
-            "field2__field4": None,
-            "field2__field5": None,
-            "field6": None,
+            'field1__field2__field3': 'test_field3',
+            'field1__field2__field4': 'test_field4',
+            'field2__field3': None,
+            'field2__field4': None,
+            'field2__field5': None,
+            'field6': None,
         }
     ]
 )
@@ -109,7 +109,7 @@ EXPECTED_DF_3 = pd.DataFrame(
 class TestPersist(TestCase):
     def setUp(self):
         """Mocking HDFS methods to run local tests"""
-        self.upload_to_hdfs_patcher = patch("target_hdfs.helpers.upload_to_hdfs")
+        self.upload_to_hdfs_patcher = patch('target_hdfs.helpers.upload_to_hdfs')
         self.mock_upload_to_hdfs = self.upload_to_hdfs_patcher.start()
         self.mock_upload_to_hdfs.side_effect = lambda local, destination: shutil.copy(
             local, destination
@@ -124,7 +124,7 @@ class TestPersist(TestCase):
 
     def test_persist_messages(self):
         with tempfile.TemporaryDirectory() as tmpdirname:
-            os.makedirs(os.path.join(tmpdirname, "test"))
+            os.makedirs(os.path.join(tmpdirname, 'test'))
             persist_messages(
                 self.generate_input_message(INPUT_MESSAGE_1),
                 TargetConfig(f"{tmpdirname}"),
@@ -139,7 +139,7 @@ class TestPersist(TestCase):
         if it doesn't replace the values if we have a conflict of the same field name in different levels of object.
         """
         with tempfile.TemporaryDirectory() as tmpdirname:
-            os.makedirs(os.path.join(tmpdirname, "test"))
+            os.makedirs(os.path.join(tmpdirname, 'test'))
             persist_messages(
                 self.generate_input_message(INPUT_MESSAGE_3),
                 TargetConfig(f"{tmpdirname}"),
@@ -150,7 +150,7 @@ class TestPersist(TestCase):
 
     def test_persist_messages_invalid_sort(self):
         with tempfile.TemporaryDirectory() as tmpdirname:
-            os.makedirs(os.path.join(tmpdirname, "test"))
+            os.makedirs(os.path.join(tmpdirname, 'test'))
             with self.assertRaises(ValueError) as e:
                 persist_messages(
                     self.generate_input_message(INPUT_MESSAGE_1_REORDERED),
@@ -164,7 +164,7 @@ class TestPersist(TestCase):
 
     def test_persist_with_schema_force(self):
         with tempfile.TemporaryDirectory() as tmpdirname:
-            os.makedirs(os.path.join(tmpdirname, "test"))
+            os.makedirs(os.path.join(tmpdirname, 'test'))
             persist_messages(
                 self.generate_input_message(INPUT_MESSAGE_2_WITH_DIFFERENT_DATA_TYPES),
                 TargetConfig(f"{tmpdirname}"),
@@ -189,7 +189,7 @@ class TestPersist(TestCase):
 
     def test_rows_per_file(self):
         with tempfile.TemporaryDirectory() as tmpdirname:
-            os.makedirs(os.path.join(tmpdirname, "test"))
+            os.makedirs(os.path.join(tmpdirname, 'test'))
             persist_messages(
                 self.generate_input_message(INPUT_MESSAGE_1 * 10000),
                 TargetConfig(f"{tmpdirname}", rows_per_file=1000),
@@ -202,7 +202,7 @@ class TestPersist(TestCase):
 
     def test_file_size(self):
         with tempfile.TemporaryDirectory() as tmpdirname:
-            os.makedirs(os.path.join(tmpdirname, "test"))
+            os.makedirs(os.path.join(tmpdirname, 'test'))
             persist_messages(
                 self.generate_input_message(INPUT_MESSAGE_1 * 50000),
                 TargetConfig(f"{tmpdirname}", file_size_mb=2),

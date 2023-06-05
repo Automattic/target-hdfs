@@ -19,7 +19,7 @@ from target_hdfs.helpers import (
 class TestHelpers(TestCase):
     def setUp(self):
         """Mocking datetime"""
-        self.datetime_patcher = patch("target_hdfs.datetime")
+        self.datetime_patcher = patch('target_hdfs.datetime')
         self.mock_datetime = self.datetime_patcher.start()
         self.mock_datetime.utcnow = mock.Mock(return_value=datetime(2023, 1, 1))
 
@@ -123,7 +123,7 @@ class TestHelpers(TestCase):
             "int": ["integer"],
             "string_date": ["string"],
             "string": ["string"],
-            "anyOf": ["null", "string"],
+            "anyOf": ['null', 'string'],
             "int_null": ["null", "integer"],
         }
 
@@ -202,70 +202,70 @@ class TestHelpers(TestCase):
 
     def test_generate_file_name(self):
         # Test separated folder
-        config = TargetConfig(hdfs_destination_path="", streams_in_separate_folder=True)
+        config = TargetConfig(hdfs_destination_path='', streams_in_separate_folder=True)
         self.assertEqual(
-            "20230101_000000-000000.gz.parquet", config.generate_file_name("my_stream")
+            '20230101_000000-000000.gz.parquet', config.generate_file_name('my_stream')
         )
 
         # Test not separated folder
         config = TargetConfig(
-            hdfs_destination_path="", streams_in_separate_folder=False
+            hdfs_destination_path='', streams_in_separate_folder=False
         )
         self.assertEqual(
-            "my_stream-20230101_000000-000000.gz.parquet",
-            config.generate_file_name("my_stream"),
+            'my_stream-20230101_000000-000000.gz.parquet',
+            config.generate_file_name('my_stream'),
         )
 
         # Test not separated folder with prefix
         config = TargetConfig(
-            hdfs_destination_path="",
+            hdfs_destination_path='',
             streams_in_separate_folder=False,
-            file_prefix="scope1",
+            file_prefix='scope1',
         )
         self.assertEqual(
-            "my_stream-scope1-20230101_000000-000000.gz.parquet",
-            config.generate_file_name("my_stream"),
+            'my_stream-scope1-20230101_000000-000000.gz.parquet',
+            config.generate_file_name('my_stream'),
         )
 
     def test_generate_hdfs_path(self):
         # Test separated folder
         config = TargetConfig(
-            hdfs_destination_path="/path/1/", streams_in_separate_folder=True
+            hdfs_destination_path='/path/1/', streams_in_separate_folder=True
         )
         self.assertEqual(
-            "/path/1/my_stream/20230101_000000-000000.gz.parquet",
-            config.generate_hdfs_path("my_stream"),
+            '/path/1/my_stream/20230101_000000-000000.gz.parquet',
+            config.generate_hdfs_path('my_stream'),
         )
 
         # Test not separated folder
         config = TargetConfig(
-            hdfs_destination_path="/path/2/", streams_in_separate_folder=False
+            hdfs_destination_path='/path/2/', streams_in_separate_folder=False
         )
         self.assertEqual(
-            "/path/2/my_stream-20230101_000000-000000.gz.parquet",
-            config.generate_hdfs_path("my_stream"),
+            '/path/2/my_stream-20230101_000000-000000.gz.parquet',
+            config.generate_hdfs_path('my_stream'),
         )
 
         # Test separated folder with partition
         config = TargetConfig(
-            hdfs_destination_path="/path/3/",
+            hdfs_destination_path='/path/3/',
             streams_in_separate_folder=True,
-            partitions="my_partition=123",
+            partitions='my_partition=123',
         )
         self.assertEqual(
-            "/path/3/my_stream/my_partition=123/20230101_000000-000000.gz.parquet",
-            config.generate_hdfs_path("my_stream"),
+            '/path/3/my_stream/my_partition=123/20230101_000000-000000.gz.parquet',
+            config.generate_hdfs_path('my_stream'),
         )
 
         # Test not separated folder with multiple partitions
         config = TargetConfig(
-            hdfs_destination_path="/path/4/",
+            hdfs_destination_path='/path/4/',
             streams_in_separate_folder=False,
-            partitions="my_partition1=1/my_partition2=2",
+            partitions='my_partition1=1/my_partition2=2',
         )
         self.assertEqual(
-            "/path/4/my_partition1=1/my_partition2=2/my_stream-20230101_000000-000000.gz.parquet",
-            config.generate_hdfs_path("my_stream"),
+            '/path/4/my_partition1=1/my_partition2=2/my_stream-20230101_000000-000000.gz.parquet',
+            config.generate_hdfs_path('my_stream'),
         )
 
     def test_flatten_array_fields(self):
@@ -279,17 +279,17 @@ class TestHelpers(TestCase):
                 {"string1": "aaa'aaa"},
                 {"string2": 'aaa"aaa'},
                 {"array": [1, 2, 3]},
-                {"true": True},
-                {"false": False},
-                {"null": None},
+                {'true': True},
+                {'false': False},
+                {'null': None},
             ],
         }
         expected = {
-            "int_array": "[1, 2, 3]",
-            "array_of_int_array": "[1, 2, [3, 4]]",
+            'int_array': '[1, 2, 3]',
+            'array_of_int_array': '[1, 2, [3, 4]]',
             "array_of_mixed_types": '["a", {"b": "value"}, ["c", "d"]]',
-            "string_array": '["a", "b", "c"]',
-            "object_array": '[{"int": 1}, {"string1": "aaa\'aaa"}, {"string2": "aaa\\"aaa"}, {"array": [1, 2, 3]}, {"true": true}, {"false": false}, {"null": null}]',
+            'string_array': '["a", "b", "c"]',
+            'object_array': '[{"int": 1}, {"string1": "aaa\'aaa"}, {"string2": "aaa\\"aaa"}, {"array": [1, 2, 3]}, {"true": true}, {"false": false}, {"null": null}]',
         }
 
         flat_schema = {

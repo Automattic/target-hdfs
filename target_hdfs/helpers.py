@@ -15,7 +15,7 @@ def bytes_to_mb(x):
     return x / (1024 * 1024)
 
 
-def flatten(dictionary, flat_schema, parent_key="", sep="__"):
+def flatten(dictionary, flat_schema, parent_key='', sep='__'):
     """Function that flattens a nested structure, using the separator given as parameter, or uses '__' as default
     E.g:
      dictionary =  {
@@ -60,7 +60,7 @@ def flatten(dictionary, flat_schema, parent_key="", sep="__"):
     return items
 
 
-def flatten_schema(dictionary, parent_key="", sep="__"):
+def flatten_schema(dictionary, parent_key='', sep='__'):
     """Function that flattens a nested structure, using the separater given as parameter, or uses '__' as default
     E.g:
      dictionary =  {
@@ -100,13 +100,13 @@ def flatten_schema(dictionary, parent_key="", sep="__"):
     if dictionary:
         for key, value in dictionary.items():
             new_key = parent_key + sep + key if parent_key else key
-            if "type" not in value:
-                if "anyOf" in value and isinstance(value["anyOf"], list):
-                    for any_of_type in value["anyOf"]:
+            if 'type' not in value:
+                if 'anyOf' in value and isinstance(value['anyOf'], list):
+                    for any_of_type in value['anyOf']:
                         extract_type(items, new_key, sep, any_of_type)
                 else:
                     LOGGER.warning(
-                        f"SCHEMA with limited support on field {key}: {value}"
+                        f'SCHEMA with limited support on field {key}: {value}'
                     )
 
             extract_type(items, new_key, sep, value)
@@ -114,20 +114,20 @@ def flatten_schema(dictionary, parent_key="", sep="__"):
 
 
 def extract_type(items, new_key, sep, value):
-    datatypes = value.get("type", [])
-    if "object" in datatypes:
-        items.update(flatten_schema(value.get("properties"), new_key, sep=sep))
+    datatypes = value.get('type', [])
+    if 'object' in datatypes:
+        items.update(flatten_schema(value.get('properties'), new_key, sep=sep))
     else:
         items[new_key].extend(datatypes if isinstance(datatypes, list) else [datatypes])
 
 
 FIELD_TYPE_TO_PYARROW = {
-    "BOOLEAN": pa.bool_(),
-    "STRING": pa.string(),
-    "ARRAY": pa.string(),
-    "": pa.string(),  # string type will be considered as default
-    "INTEGER": pa.int64(),
-    "NUMBER": pa.float64(),
+    'BOOLEAN': pa.bool_(),
+    'STRING': pa.string(),
+    'ARRAY': pa.string(),
+    '': pa.string(),  # string type will be considered as default
+    'INTEGER': pa.int64(),
+    'NUMBER': pa.float64(),
 }
 
 
@@ -136,9 +136,9 @@ def _field_type_to_pyarrow_field(field_name: str, input_types: Union[List[str], 
     if isinstance(input_types, str):
         input_types = [input_types]
     types_uppercase = {item.upper() for item in input_types}
-    nullable = "NULL" in types_uppercase
-    types_uppercase.discard("NULL")
-    input_type = list(types_uppercase)[0] if types_uppercase else ""
+    nullable = 'NULL' in types_uppercase
+    types_uppercase.discard('NULL')
+    input_type = list(types_uppercase)[0] if types_uppercase else ''
     pyarrow_type = FIELD_TYPE_TO_PYARROW.get(input_type, None)
 
     if not pyarrow_type:
@@ -196,21 +196,21 @@ def concat_tables(
             [pyarrow_tables[current_stream_name], dataframe]
         )
     LOGGER.debug(
-        f"Pyarrow Table [{current_stream_name}] size: "
-        f"{pyarrow_tables[current_stream_name].num_rows} rows"
+        f'Pyarrow Table [{current_stream_name}] size: '
+        f'{pyarrow_tables[current_stream_name].num_rows} rows'
     )
 
 
 def upload_to_hdfs(local_file, destination_path_hdfs) -> None:
     """Upload a local file to HDFS using RPC"""
-    LOGGER.debug(f"Uploading file to HDFS: {destination_path_hdfs} ")
+    LOGGER.debug(f'Uploading file to HDFS: {destination_path_hdfs} ')
     pa.fs.copy_files(
         local_file,
         destination_path_hdfs,
         source_filesystem=pa.fs.LocalFileSystem(),
-        destination_filesystem=pa.fs.HadoopFileSystem("default"),
+        destination_filesystem=pa.fs.HadoopFileSystem('default'),
     )
-    LOGGER.info(f"File {destination_path_hdfs} uploaded to HDFS")
+    LOGGER.info(f'File {destination_path_hdfs} uploaded to HDFS')
 
 
 def write_file_to_hdfs(
@@ -226,7 +226,7 @@ def write_file_to_hdfs(
         concat_tables(current_stream_name, pyarrow_tables, records, pyarrow_schema)
 
     if current_stream_name in pyarrow_tables:
-        with tempfile.NamedTemporaryFile("wb") as tmp_file:
+        with tempfile.NamedTemporaryFile('wb') as tmp_file:
             ParquetWriter(
                 tmp_file.name,
                 pyarrow_tables[current_stream_name].schema,
