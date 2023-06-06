@@ -34,12 +34,14 @@ class TestHelpers(TestCase):
         in_dict = {
             "key_1": 1,
             "key_2": {"key_3": 2, "key_4": {"key_5": 3, "key_6": ["10", "11"]}},
+            "key_7": {"key_8": 2},
         }
         expected = {
             "key_1": 1,
             "key_2__key_3": 2,
             "key_2__key_4__key_5": 3,
             "key_2__key_4__key_6": '["10", "11"]',
+            "key_7": '{"key_8": 2}',
         }
 
         flat_schema = {
@@ -47,6 +49,7 @@ class TestHelpers(TestCase):
             "key_2__key_3": ["null", "integer"],
             "key_2__key_4__key_5": ["null", "integer"],
             "key_2__key_4__key_6": "string",
+            "key_7": "object",
         }
         output = flatten(in_dict, flat_schema)
         self.assertEqual(output, expected)
@@ -117,6 +120,7 @@ class TestHelpers(TestCase):
                 "anyOf": [{"type": "null"}, {"type": "string", "format": "date-time"}]
             },
             "int_null": {"type": ["null", "integer"]},
+            "object_with_no_schema": {"type": ["null", "object"]},
         }
 
         expected = {
@@ -125,6 +129,7 @@ class TestHelpers(TestCase):
             "string": ["string"],
             "anyOf": ['null', 'string'],
             "int_null": ["null", "integer"],
+            "object_with_no_schema": ["null", "object"],
         }
 
         with self._caplog.at_level(logging.WARNING):
@@ -150,6 +155,7 @@ class TestHelpers(TestCase):
             "page_views_count": "integer",
             "only_null_datatype": ["null"],
             "page_views_avg": ["number", "null"],
+            "object_with_no_schema": ["object", "null"],
         }
 
         expected = pa.schema(
@@ -163,6 +169,7 @@ class TestHelpers(TestCase):
                 pa.field("page_views_count", pa.int64(), False),
                 pa.field("only_null_datatype", pa.string(), True),
                 pa.field("page_views_avg", pa.float64(), True),
+                pa.field("object_with_no_schema", pa.string(), True),
             ]
         )
         result = flatten_schema_to_pyarrow_schema(in_dict)
@@ -283,6 +290,15 @@ class TestHelpers(TestCase):
                 {'false': False},
                 {'null': None},
             ],
+            "object_with_no_schema": {
+                "int": 1,
+                "string1": "aaa'aaa",
+                "string2": 'aaa"aaa',
+                "array": [1, 2, 3],
+                'true': True,
+                'false': False,
+                'null': None,
+            },
         }
         expected = {
             'int_array': '[1, 2, 3]',
@@ -290,6 +306,7 @@ class TestHelpers(TestCase):
             "array_of_mixed_types": '["a", {"b": "value"}, ["c", "d"]]',
             'string_array': '["a", "b", "c"]',
             'object_array': '[{"int": 1}, {"string1": "aaa\'aaa"}, {"string2": "aaa\\"aaa"}, {"array": [1, 2, 3]}, {"true": true}, {"false": false}, {"null": null}]',
+            'object_with_no_schema': '{"int": 1, "string1": "aaa\'aaa", "string2": "aaa\\"aaa", "array": [1, 2, 3], "true": true, "false": false, "null": null}',
         }
 
         flat_schema = {
@@ -298,6 +315,7 @@ class TestHelpers(TestCase):
             "array_of_mixed_types": "array",
             "string_array": ["null", "array"],
             "object_array": "array",
+            "object_with_no_schema": "object",
         }
         output = flatten(in_dict, flat_schema)
         self.assertEqual(expected, output)

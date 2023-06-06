@@ -51,11 +51,16 @@ def flatten(dictionary, flat_schema, parent_key='', sep='__'):
     if dictionary:
         for key, value in dictionary.items():
             new_key = parent_key + sep + key if parent_key else key
-            if isinstance(value, MutableMapping):
+            if (
+                isinstance(value, MutableMapping)
+                and flat_schema.get(new_key) != 'object'
+            ):
                 items.update(flatten(value, flat_schema, new_key, sep=sep))
             elif new_key in flat_schema:
                 items[new_key] = (
-                    json.dumps(value, default=str) if isinstance(value, list) else value
+                    json.dumps(value, default=str)
+                    if any(isinstance(value, t) for t in (list, dict))
+                    else value
                 )
     return items
 
@@ -115,7 +120,7 @@ def flatten_schema(dictionary, parent_key='', sep='__'):
 
 def extract_type(items, new_key, sep, value):
     datatypes = value.get('type', [])
-    if 'object' in datatypes:
+    if 'object' in datatypes and 'properties' in value:
         items.update(flatten_schema(value.get('properties'), new_key, sep=sep))
     else:
         items[new_key].extend(datatypes if isinstance(datatypes, list) else [datatypes])
@@ -128,6 +133,7 @@ FIELD_TYPE_TO_PYARROW = {
     '': pa.string(),  # string type will be considered as default
     'INTEGER': pa.int64(),
     'NUMBER': pa.float64(),
+    'OBJECT': pa.string(),
 }
 
 
