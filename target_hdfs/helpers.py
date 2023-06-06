@@ -51,9 +51,9 @@ def flatten(dictionary, flat_schema, parent_key='', sep='__'):
     if dictionary:
         for key, value in dictionary.items():
             new_key = parent_key + sep + key if parent_key else key
-            if (
-                isinstance(value, MutableMapping)
-                and flat_schema.get(new_key) != 'object'
+            # object schema will be set only when there is no schema for the field (nested properties)
+            if isinstance(value, MutableMapping) and 'object' not in flat_schema.get(
+                new_key, []
             ):
                 items.update(flatten(value, flat_schema, new_key, sep=sep))
             elif new_key in flat_schema:

@@ -105,6 +105,21 @@ EXPECTED_DF_3 = pd.DataFrame(
     ]
 )
 
+# With objects with no schema
+INPUT_MESSAGE_4 = """\
+{"type": "SCHEMA","stream": "test", "schema": { "type": ["null", "object"], "properties": { "field1": { "type": ["null", "object"] } } }, "key_properties": ["field1"] }
+{"type": "RECORD", "stream": "test", "record": { "field1": {"field2": "value"} } }
+{"type": "STATE", "value": {"datetime": "2020-10-19"}}
+"""
+
+EXPECTED_DF_4 = pd.DataFrame(
+    [
+        {
+            'field1': '{"field2": "value"}',
+        }
+    ]
+)
+
 
 class TestPersist(TestCase):
     def setUp(self):
@@ -214,3 +229,17 @@ class TestPersist(TestCase):
             self.assertAlmostEqual(
                 bytes_to_mb(df.nbytes), 2, places=1
             )  # approx 1MB per file
+
+    def test_object_with_no_schema(self):
+        """
+        This tests checks if there is an object with no schema in the record, and it should be converted to json string.
+        """
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            os.makedirs(os.path.join(tmpdirname, 'test'))
+            persist_messages(
+                self.generate_input_message(INPUT_MESSAGE_4),
+                TargetConfig(f"{tmpdirname}"),
+            )
+            filename = [f for f in glob.glob(f"{tmpdirname}/test/*.parquet")]
+            df = ParquetFile(filename[0]).read().to_pandas()
+            assert_frame_equal(df, EXPECTED_DF_4, check_like=True)
