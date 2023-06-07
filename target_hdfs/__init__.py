@@ -13,16 +13,20 @@ from typing import Optional
 import singer
 from jsonschema.validators import Draft4Validator
 
-from .helpers import flatten, flatten_schema, concat_tables, write_file_to_hdfs, flatten_schema_to_pyarrow_schema, \
-    bytes_to_mb
+from .helpers import (
+    flatten,
+    flatten_schema,
+    concat_tables,
+    write_file_to_hdfs,
+    flatten_schema_to_pyarrow_schema,
+    bytes_to_mb,
+)
 
 _all__ = ['main']
 
 LOGGER = singer.get_logger()
 
-REQUIRED_CONFIG_KEYS = [
-    'hdfs_destination_path'
-]
+REQUIRED_CONFIG_KEYS = ['hdfs_destination_path']
 
 EXTENSION_MAPPING = {
     'SNAPPY': '.snappy',
@@ -63,7 +67,9 @@ class TargetConfig:
     def set_compression_extension(self):
         if self.compression_method:
             # The target is prepared to accept all the compression methods provided by the pandas module
-            self.compression_extension = EXTENSION_MAPPING.get(self.compression_method.upper())
+            self.compression_extension = EXTENSION_MAPPING.get(
+                self.compression_method.upper()
+            )
             if self.compression_extension is None:
                 raise UnsupportedCompressionMethod('Unsupported compression method.')
 
@@ -123,8 +129,10 @@ def persist_messages(messages, config: TargetConfig):
                 if message_type == 'RECORD':
                     stream_name = message['stream']
                     if stream_name not in schemas:
-                        raise ValueError(f'A record for stream {stream_name} was encountered '
-                                         f'before a corresponding schema')
+                        raise ValueError(
+                            f'A record for stream {stream_name} was encountered '
+                            f'before a corresponding schema'
+                        )
                     validators[stream_name].validate(message['record'])
                     flattened_record = flatten(message['record'], schemas[stream_name])
                     # Once the record is flattened, it is added to the final record list,
@@ -142,7 +150,9 @@ def persist_messages(messages, config: TargetConfig):
                     key_properties[stream] = message['key_properties']
                     w_queue.put((MessageType.SCHEMA, stream, schemas[stream]))
                 else:
-                    LOGGER.warning(f'Unknown message type {message["type"]} in message {message}')
+                    LOGGER.warning(
+                        f'Unknown message type {message["type"]} in message {message}'
+                    )
             w_queue.put((MessageType.EOF, _break_object, None))
             return state
         except Exception as err:
@@ -163,32 +173,51 @@ def persist_messages(messages, config: TargetConfig):
             write_file_for_current_stream = False
             (message_type, stream_name, record) = receiver.get()
             if message_type == MessageType.RECORD:
-                if stream_name != current_stream_name and current_stream_name is not None:
+                if (
+                    stream_name != current_stream_name
+                    and current_stream_name is not None
+                ):
                     # Write files to HDFS if the stream has changed
-                    write_file_to_hdfs(current_stream_name=current_stream_name,
-                                       pyarrow_tables=pyarrow_tables,
-                                       records=records,
-                                       pyarrow_schema=pyarrow_schemas[current_stream_name],
-                                       config=config,
-                                       files_created_list=files_created)
+                    write_file_to_hdfs(
+                        current_stream_name=current_stream_name,
+                        pyarrow_tables=pyarrow_tables,
+                        records=records,
+                        pyarrow_schema=pyarrow_schemas[current_stream_name],
+                        config=config,
+                        files_created_list=files_created,
+                    )
                 current_stream_name = stream_name
                 records[stream_name].append(record)
                 records_count[stream_name] += 1
                 # Update the pyarrow table on every 1000 records
                 if not records_count[stream_name] % 1000:
-                    concat_tables(current_stream_name, pyarrow_tables, records, pyarrow_schemas[current_stream_name])
+                    concat_tables(
+                        current_stream_name,
+                        pyarrow_tables,
+                        records,
+                        pyarrow_schemas[current_stream_name],
+                    )
 
                     # Checking file size on every 10000 records
                     if config.file_size_mb and not records_count[stream_name] % 10000:
-                        LOGGER.debug(f'Pyarrow Table [{current_stream_name}] size: '
-                                     f'{bytes_to_mb(pyarrow_tables[current_stream_name].nbytes)} MB | '
-                                     f'{pyarrow_tables[current_stream_name].num_rows} rows')
+                        LOGGER.debug(
+                            f'Pyarrow Table [{current_stream_name}] size: '
+                            f'{bytes_to_mb(pyarrow_tables[current_stream_name].nbytes)} MB | '
+                            f'{pyarrow_tables[current_stream_name].num_rows} rows'
+                        )
                         # Write the file to HDFS if the file size is greater than the specified size
-                        if bytes_to_mb(pyarrow_tables[current_stream_name].nbytes) >= config.file_size_mb > 0:
+                        if (
+                            bytes_to_mb(pyarrow_tables[current_stream_name].nbytes)
+                            >= config.file_size_mb
+                            > 0
+                        ):
                             write_file_for_current_stream = True
 
                 # Write the file to HDFS if the number of rows is greater than the specified number
-                if config.rows_per_file and not records_count[current_stream_name] % config.rows_per_file:
+                if (
+                    config.rows_per_file
+                    and not records_count[current_stream_name] % config.rows_per_file
+                ):
                     write_file_for_current_stream = True
             elif message_type == MessageType.SCHEMA:
                 pyarrow_schemas[stream_name] = flatten_schema_to_pyarrow_schema(record)
@@ -198,18 +227,25 @@ def persist_messages(messages, config: TargetConfig):
                 more_messages = False
 
             if write_file_for_current_stream:
-                write_file_to_hdfs(current_stream_name=current_stream_name,
-                                   pyarrow_tables=pyarrow_tables,
-                                   records=records,
-                                   pyarrow_schema=pyarrow_schemas[current_stream_name],
-                                   config=config,
-                                   files_created_list=files_created)
+                write_file_to_hdfs(
+                    current_stream_name=current_stream_name,
+                    pyarrow_tables=pyarrow_tables,
+                    records=records,
+                    pyarrow_schema=pyarrow_schemas[current_stream_name],
+                    config=config,
+                    files_created_list=files_created,
+                )
 
         LOGGER.info(f'Wrote {len(files_created)} files')
         LOGGER.debug(f'Wrote {files_created} files')
 
-    messages_queue = Queue() if not config.max_queue_size else Queue(config.max_queue_size)
-    process_consumer = Process(target=consumer, args=(messages_queue,),)
+    messages_queue = (
+        Queue() if not config.max_queue_size else Queue(config.max_queue_size)
+    )
+    process_consumer = Process(
+        target=consumer,
+        args=(messages_queue,),
+    )
     process_consumer.start()
     state = producer(messages, messages_queue)
     process_consumer.join()
@@ -232,7 +268,7 @@ def main():
             partitions=config.get('partitions'),
             file_prefix=config.get('file_prefix'),
             max_queue_size=config.get('max_queue_size', 1_000_000),
-        )
+        ),
     )
 
     emit_state(state)

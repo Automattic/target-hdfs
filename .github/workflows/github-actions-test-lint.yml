@@ -16,5 +16,7 @@ jobs:
       run: pip install -e .[dev]
     - name: Running pylint
       run: pylint target_hdfs
+    - name: Running black formatter check
+      run: black --check --diff --skip-string-normalization .
     - name: Running pytest
       run: pytest
