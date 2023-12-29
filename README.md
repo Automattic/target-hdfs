@@ -1,81 +1,132 @@
 # target-hdfs
 
-A [Singer](https://singer.io) target that writes data to parquet files in HDFS. This target is based on [`target-parquet`] [targetparquet] 
-and the code was adapted to generate parquet files and upload to HDFS using RPC.
+`target-hdfs` is a Singer target for hdfs.
 
-## How to use it
+Build with the [Meltano Target SDK](https://sdk.meltano.com).
 
-`target-hdfs` works with a [Singer Tap] in order to move data ingested by the tap into parquet files and upload to HDFS.
+<!--
 
-### Install
+Developer TODO: Update the below as needed to correctly describe the install procedure. For instance, if you do not have a PyPi repo, or if you want users to directly install from your git repo, you can modify this step as appropriate.
 
-We will use [`tap-exchangeratesapi`][exchangeratesapi] to pull currency exchange rate data from a public data set as an example.
+## Installation
 
-First, make sure Python 3 is installed on your system or follow these installation instructions for [Linux] or [Mac] and you have a HDFS configured with `core-site.xml` file.
-
-It is recommended to install each Tap and Target in a separate Python virtual environment to avoid conflicting dependencies between any Taps and Targets.
+Install from PyPi:
 
 ```bash
- # Install tap-exchangeratesapi in its own virtualenv
-python3 -m venv ~/.virtualenvs/tap-exchangeratesapi
-source ~/.virtualenvs/tap-exchangeratesapi/bin/activate
-pip3 install tap-exchangeratesapi
-deactivate
-
-# Install target-hdfs in its own virtualenv
-python3 -m venv ~/.virtualenvs/target-hdfs
-source ~/.virtualenvs/target-hdfs/bin/activate
-pip3 install target-hdfs
-deactivate
+pipx install target-hdfs
 ```
 
-### Run
-
-We can now run `tap-exchangeratesapi` and pipe the output to `target-hdfs`.
+Install from GitHub:
 
 ```bash
-~/.virtualenvs/tap-exchangeratesapi/bin/tap-exchangeratesapi | ~/.virtualenvs/target-hdfs/bin/target-hdfs
+pipx install git+https://github.com/ORG_NAME/target-hdfs.git@main
 ```
 
-By default (if you use the config sample), the data will be written into a file called `/path/to/the/output/directory/exchange_rate/sync_ymd=20220101/{timestamp}.gz.parquet` in your HDFS.
+-->
 
-### Optional Configuration
+## Configuration
 
-If you want to save the file in a specific location, you need to create a new configuration file, 
-in which you specify the `hdfs_destination_path` to the directory you are interested in and pass the `-c` argument to the target.
-Also, you can compress the parquet file by passing the `compression_method` argument in the configuration file. 
-Note that, these compression methods have to be supported by `Pyarrow`, and at the moment (October, 2020), 
-the only compression modes available are: snappy (recommended), zstd, brotli and gzip. The library will check these, 
-and default to `gzip` if something else is provided.
-For an example of the configuration file, see [config.sample.json](config.sample.json).
-The `file_prefix` define a prefix to include in the file name when upload to HDFS.
-There is also an `streams_in_separate_folder` option to create each stream in a different folder, as these are expected to come in different schema.
-The `rows_per_file` and `file_size_mb` force a file to be saved every time the number of rows is reached or/and the pyarrow 
-dataframe size reach the file size (without the compression).
-The `partitions` config is an option to save the data in one or more partitions (e.g. `sync_ymd=20230101` or `sync_year=2023/sync_month=01/sync_day=01`).
-To run `target-hdfs` with the configuration file, use this command:
+### Accepted Config Options
+
+<!--
+Developer TODO: Provide a list of config options accepted by the target.
+
+This section can be created by copy-pasting the CLI output from:
+
+```
+target-hdfs --about --format=markdown
+```
+-->
+
+A full list of supported settings and capabilities for this
+target is available by running:
 
 ```bash
-~/.virtualenvs/tap-exchangeratesapi/bin/tap-exchangeratesapi | ~/.virtualenvs/target-hdfs/bin/target-hdfs -c config.json
+target-hdfs --about
 ```
 
-[singer tap]: https://singer.io
-[targetparquet]: https://github.com/Automattic/target-parquet
-[exchangeratesapi]: https://github.com/singer-io/tap-exchangeratesapi
-[mac]: http://docs.python-guide.org/en/latest/starting/install3/osx/
-[linux]: https://docs.python-guide.org/starting/install3/linux/
+### Configure using environment variables
 
+This Singer target will automatically import any environment variables within the working directory's
+`.env` if the `--config=ENV` is provided, such that config values will be considered if a matching
+environment variable is set either in the terminal context or in the `.env` file.
 
-### Development
+### Source Authentication and Authorization
 
-To install development required packages run
+<!--
+Developer TODO: If your target requires special access on the destination system, or any special authentication requirements, provide those here.
+-->
+
+## Usage
+
+You can easily run `target-hdfs` by itself or in a pipeline using [Meltano](https://meltano.com/).
+
+### Executing the Target Directly
 
 ```bash
-pip install -e ".[dev]"
+target-hdfs --version
+target-hdfs --help
+# Test using the "Carbon Intensity" sample:
+tap-carbon-intensity | target-hdfs --config /path/to/target-hdfs-config.json
 ```
 
-In order to run all tests run
+## Developer Resources
+
+Follow these instructions to contribute to this project.
+
+### Initialize your Development Environment
 
 ```bash
-pytest
+pipx install poetry
+poetry install
 ```
+
+### Create and Run Tests
+
+Create tests within the `tests` subfolder and
+  then run:
+
+```bash
+poetry run pytest
+```
+
+You can also test the `target-hdfs` CLI interface directly using `poetry run`:
+
+```bash
+poetry run target-hdfs --help
+```
+
+### Testing with [Meltano](https://meltano.com/)
+
+_**Note:** This target will work in any Singer environment and does not require Meltano.
+Examples here are for convenience and to streamline end-to-end orchestration scenarios._
+
+<!--
+Developer TODO:
+Your project comes with a custom `meltano.yml` project file already created. Open the `meltano.yml` and follow any "TODO" items listed in
+the file.
+-->
+
+Next, install Meltano (if you haven't already) and any needed plugins:
+
+```bash
+# Install meltano
+pipx install meltano
+# Initialize meltano within this directory
+cd target-hdfs
+meltano install
+```
+
+Now you can test and orchestrate using Meltano:
+
+```bash
+# Test invocation:
+meltano invoke target-hdfs --version
+# OR run a test `elt` pipeline with the Carbon Intensity sample tap:
+meltano run tap-carbon-intensity target-hdfs
+```
+
+### SDK Dev Guide
+
+See the [dev guide](https://sdk.meltano.com/en/latest/dev_guide.html) for more instructions on how to use the Meltano Singer SDK to
+develop your own Singer taps and targets.
