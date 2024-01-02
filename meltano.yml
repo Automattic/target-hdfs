@@ -68,3 +68,20 @@ plugins:
     - name: extra_fields
     - name: extra_fields_types
     - name: partition_cols
+  - name: "target-parquet"
+    namespace: "target_parquet"
+    pip_url: git+https://github.com/Automattic/target-parquet@target_parquet_1_0_0
+    capabilities:
+      - about
+      - stream-maps
+      - record-flattening
+    config:
+      start_date: '2010-01-01T00:00:00Z'
+    settings:
+      - name: destination_path
+      - name: compression_method
+      - name: max_pyarrow_table_size
+      - name: max_batch_size
+      - name: extra_fields
+      - name: extra_fields_types
+      - name: partition_cols

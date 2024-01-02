@@ -15,7 +15,7 @@ python = ">=3.8,<4"
 singer-sdk = { version="~=0.34.1" }
 fs-s3fs = { version = "~=1.1.1", optional = true }
 requests = "~=2.31.0"
-pyarrow = "~=14.0.2"
+target-parquet = { git = "git@github.com:Automattic/target-parquet.git", branch = "target_parquet_1_0_0" }
 
 [tool.poetry.dev-dependencies]
 pytest = ">=7.4.0"
