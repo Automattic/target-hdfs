@@ -7,7 +7,7 @@ import typing as t
 import pytest
 from singer_sdk.testing import get_target_test_class
 
-from target_hdfs.target import Targethdfs
+from target_hdfs.target import TargetHDFS
 
 # TODO: Initialize minimal target config
 SAMPLE_CONFIG: dict[str, t.Any] = {}
@@ -15,12 +15,12 @@ SAMPLE_CONFIG: dict[str, t.Any] = {}
 
 # Run standard built-in target tests from the SDK:
 StandardTargetTests = get_target_test_class(
-    target_class=Targethdfs,
+    target_class=TargetHDFS,
     config=SAMPLE_CONFIG,
 )
 
 
-class TestTargethdfs(StandardTargetTests):  # type: ignore[misc, valid-type]
+class TestTargetHDFS(StandardTargetTests):  # type: ignore[misc, valid-type]
     """Standard Target Tests."""
 
     @pytest.fixture(scope="class")

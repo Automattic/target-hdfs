@@ -6,7 +6,7 @@ import os.path
 from target_parquet.sinks import ParquetSink
 
 from target_hdfs.utils.hdfs import upload_to_hdfs, read_most_recent_file
-from utils.parquet import get_parquet_files
+from target_hdfs.utils.parquet import get_parquet_files
 
 
 class HDFSSink(ParquetSink):
@@ -15,7 +15,8 @@ class HDFSSink(ParquetSink):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.hdfs_destination_path = self.config["hdfs_destination_path"]
-        self.pyarrow_df = read_most_recent_file(self.hdfs_destination_path)
+
+    #        self.pyarrow_df = read_most_recent_file(self.hdfs_destination_path)
 
     def upload_files(self):
         """Upload a local file to HDFS"""

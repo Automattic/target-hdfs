@@ -52,4 +52,4 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 # CLI declaration
-target-hdfs = 'target_hdfs.target:Targethdfs.cli'
+target-hdfs = 'target_hdfs.target:TargetHDFS.cli'
