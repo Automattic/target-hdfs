@@ -9,8 +9,16 @@ from singer_sdk.testing import get_target_test_class
 
 from target_hdfs.target import TargetHDFS
 
-# TODO: Initialize minimal target config
-SAMPLE_CONFIG: dict[str, t.Any] = {}
+SAMPLE_CONFIG: dict[str, t.Any] = {
+    "hdfs_destination_path": "/tmp/meltano_test",
+}
+
+
+@pytest.fixture(autouse=True)
+def mock_hdfs_requests(monkeypatch):
+    monkeypatch.setattr("target_hdfs.sinks.read_most_recent_file", lambda *args: None)
+    monkeypatch.setattr("target_hdfs.utils.hdfs.upload_to_hdfs", lambda *args: None)
+    monkeypatch.setattr("target_hdfs.utils.hdfs.delete_old_files", lambda *args: None)
 
 
 # Run standard built-in target tests from the SDK:

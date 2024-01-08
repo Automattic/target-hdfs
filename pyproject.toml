@@ -28,6 +28,7 @@ s3 = ["fs-s3fs"]
 [tool.ruff]
 src = ["target_hdfs"]
 target-version = "py39"
+exclude = ["tests"]
 
 [tool.ruff.lint]
 ignore = [

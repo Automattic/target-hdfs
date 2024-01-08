@@ -20,7 +20,9 @@ class HDFSSink(ParquetSink):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.hdfs_destination_path = self.config["hdfs_destination_path"]
+        self.hdfs_destination_path = (
+            self.config["hdfs_destination_path"] + self.stream_name
+        )
         self.pyarrow_df = read_most_recent_file(self.hdfs_destination_path)
 
     def upload_files(self) -> None:
