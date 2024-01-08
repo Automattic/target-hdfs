@@ -15,7 +15,6 @@ __pycache__/
 
 # Distribution / packaging
 .Python
-env/
 build/
 develop-eggs/
 dist/
@@ -141,3 +140,5 @@ output/
 plugins/
 
 .idea/
+tmp/
+.output

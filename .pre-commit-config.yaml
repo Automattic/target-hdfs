@@ -14,32 +14,32 @@ repos:
   - id: trailing-whitespace
 
 - repo: https://github.com/python-jsonschema/check-jsonschema
-  rev: 0.27.2
+  rev: 0.27.3
   hooks:
   - id: check-dependabot
   - id: check-github-workflows
 
-#- repo: https://github.com/astral-sh/ruff-pre-commit
-#  rev: v0.1.6
-#  hooks:
-#  - id: ruff
-#    args: [--fix, --exit-non-zero-on-fix, --show-fixes]
-#  - id: ruff-format
-#
-#- repo: https://github.com/pre-commit/mirrors-mypy
-#  rev: v1.7.1
-#  hooks:
-#  - id: mypy
-#    additional_dependencies:
-#    - sqlalchemy-stubs
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.1.11
+  hooks:
+  - id: ruff
+    args: [--fix, --exit-non-zero-on-fix, --show-fixes]
+  - id: ruff-format
+
+- repo: https://github.com/pre-commit/mirrors-mypy
+  rev: v1.8.0
+  hooks:
+  - id: mypy
+    additional_dependencies:
+    - sqlalchemy-stubs
 
 - repo: https://github.com/zricethezav/gitleaks
-  rev: v8.16.3
+  rev: v8.18.1
   hooks:
     - id: gitleaks
 
 - repo: https://github.com/psf/black
-  rev: stable
+  rev: 23.12.1
   hooks:
     - id: black
       args: [--skip-string-normalization]

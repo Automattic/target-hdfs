@@ -11,10 +11,11 @@ keywords = [
 license = "Apache-2.0"
 
 [tool.poetry.dependencies]
-python = ">=3.8,<4"
+python = ">=3.9,<4"
 singer-sdk = { version="~=0.34.1" }
 fs-s3fs = { version = "~=1.1.1", optional = true }
 requests = "~=2.31.0"
+# TODO: Set the tav v1.0.0 when it's released
 target-parquet = { git = "git@github.com:Automattic/target-parquet.git", branch = "target_parquet_1_0_0" }
 
 [tool.poetry.dev-dependencies]
@@ -26,7 +27,7 @@ s3 = ["fs-s3fs"]
 
 [tool.ruff]
 src = ["target_hdfs"]
-target-version = "py37"
+target-version = "py39"
 
 [tool.ruff.lint]
 ignore = [
@@ -34,6 +35,19 @@ ignore = [
     "ANN102",  # missing-type-cls
     "COM812",  # missing-trailing-comma
     "ISC001",  # single-line-implicit-string-concatenation
+    "ANN204",  # Missing return type annotation for special method `__init__`
+    "D107",    # Missing docstring in __init__
+    "ANN002",  # Missing type annotation for `*args`
+    "ANN003",  # Missing type annotation for `**kwargs`
+    "PTH118",  # `os.path.join()` should be replaced by `Path` with `/` operator
+    "D100",    # Missing docstring in public module
+    "G004",    # Logging statement uses f-string
+    "S101",    # Use of `assert` detected"
+    "D104",    # Missing docstring in public package
+    "TRY003",  # Avoid specifying long messages outside the exception class"
+    "EM102",   # Exception must not use an f-string literal, assign to variable first"
+    "TCH002",  # Move third-party import `pyarrow._fs.FileInfo` into a type-checking block
+    "S603",    # `subprocess` call: check for execution of untrusted input
 ]
 select = ["ALL"]
 
@@ -45,6 +59,9 @@ known-first-party = ["target_hdfs"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
+
+[tool.ruff.lint.pycodestyle]
+max-line-length = 120
 
 [build-system]
 requires = ["poetry-core>=1.0.8"]
