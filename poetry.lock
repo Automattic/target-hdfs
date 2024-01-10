@@ -1467,7 +1467,7 @@ s3 = ["fs-s3fs (>=1.1.1,<1.2.0)"]
 
 [package.source]
 type = "git"
-url = "git@github.com:Automattic/target-parquet.git"
+url = "https://github.com/Automattic/target-parquet.git"
 reference = "target_parquet_1_0_0"
 resolved_reference = "7a605bbd14c2c9061b1b33c2bc95ea635d0fc231"
 
@@ -1541,4 +1541,4 @@ s3 = ["fs-s3fs"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<4"
-content-hash = "8f95529e328cf7957363018ac35ef1bffeb8022f57b05711528d6fb687d9ab0e"
+content-hash = "39775e592390cdee6c2d9a6b472f3e6548722c2bf1b9423edc6637338c4269c1"
