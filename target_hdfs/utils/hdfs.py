@@ -6,7 +6,7 @@ from subprocess import run
 from tempfile import NamedTemporaryFile
 
 import pyarrow as pa
-from pyarrow._fs import FileInfo
+from pyarrow._fs import FileInfo, FileType
 
 from target_hdfs.utils import convert_size_to_bytes
 
@@ -67,6 +67,8 @@ def set_file_as_old(file_path: str) -> None:
 def get_files(hdfs_path: str, extension: str = ".parquet") -> list[FileInfo]:
     """Get all parquet files in a given HDFS path."""
     hdfs_client = get_hdfs_client()
+    if hdfs_client.get_file_info(hdfs_path).type == FileType.NotFound:
+        return []
     file_list = hdfs_client.get_file_info(pa.fs.FileSelector(hdfs_path, recursive=True))
     return [file for file in file_list if file.base_name.endswith(extension)]
 
