@@ -96,7 +96,7 @@ def read_most_recent_file(hdfs_file_path: str) -> pa.Table | None:
         return None
     with NamedTemporaryFile("wb") as tmp_file:
         download_from_hdfs(most_recent_file.path, tmp_file.name)
-        parquet_df = pa.parquet.read_table(most_recent_file.base_name)
+        parquet_df = pa.parquet.read_table(tmp_file.name)
         # To make sure that the file will be correctly processed, we set the file as old
         if most_recent_file.extension != ".parquet_old":
             set_file_as_old(most_recent_file.path)
