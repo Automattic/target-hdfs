@@ -17,8 +17,8 @@ SAMPLE_CONFIG: dict[str, t.Any] = {
 @pytest.fixture(autouse=True)
 def mock_hdfs_requests(monkeypatch):
     monkeypatch.setattr("target_hdfs.sinks.read_most_recent_file", lambda *args: None)
-    monkeypatch.setattr("target_hdfs.utils.hdfs.upload_to_hdfs", lambda *args: None)
-    monkeypatch.setattr("target_hdfs.utils.hdfs.delete_old_files", lambda *args: None)
+    monkeypatch.setattr("target_hdfs.sinks.upload_to_hdfs", lambda *args: None)
+    monkeypatch.setattr("target_hdfs.sinks.delete_old_files", lambda *args: None)
 
 
 # Run standard built-in target tests from the SDK:
