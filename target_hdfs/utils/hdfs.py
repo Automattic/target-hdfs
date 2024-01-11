@@ -105,6 +105,8 @@ def read_most_recent_file(hdfs_file_path: str) -> pa.Table | None:
 
 def delete_old_files(hdfs_path: str) -> None:
     """Delete old files in HDFS."""
+    logger.info(f"Deleting old files in {hdfs_path}")
     for file in get_files(hdfs_path, extension=".parquet_old"):
         hdfs_client = get_hdfs_client()
         hdfs_client.delete_file(file.path)
+        logger.info(f"File {file.path} deleted from HDFS")
