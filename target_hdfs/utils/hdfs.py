@@ -60,8 +60,9 @@ def replace_old_file_with_new_file(new_file_path: str) -> None:
 
 def set_file_as_old(file_path: str) -> None:
     """Replace the old file with the new file in HDFS."""
-    hdfs_client = get_hdfs_client()
-    hdfs_client.move(file_path, f"{file_path}_old")
+    if not file_path.endswith("_old"):
+        hdfs_client = get_hdfs_client()
+        hdfs_client.move(file_path, f"{file_path}_old")
 
 
 def get_files(hdfs_path: str, extension: str = ".parquet") -> list[FileInfo]:
