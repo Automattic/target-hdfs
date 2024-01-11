@@ -32,8 +32,7 @@ class HDFSSink(ParquetSink):
         for file in local_parquet_files:
             new_hdfs_file_path = os.path.join(
                 self.hdfs_destination_path,
-                os.path.relpath(file, self.destination_path),
-                "_new",
+                os.path.relpath(file, self.destination_path) + "_new",
             )
             upload_to_hdfs(file, new_hdfs_file_path)
             Path(file).unlink()
