@@ -31,7 +31,7 @@ class HDFSSink(ParquetSink):
     def upload_files(self) -> None:
         """Upload a local file to HDFS."""
         local_parquet_files = get_parquet_files(self.destination_path)
-        logger.debug(f"Uploading {local_parquet_files} to HDFS")
+        logger.info(f"Uploading {local_parquet_files} to HDFS")
         for file in local_parquet_files:
             new_hdfs_file_path = os.path.join(
                 self.hdfs_destination_path,
