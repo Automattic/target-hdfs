@@ -44,8 +44,7 @@ class HDFSSink(ParquetSink):
     def write_file(self) -> None:
         """Write a local file and upload to hdfs."""
         super().write_file()
-        if self.pyarrow_df is not None:
-            self.upload_files()
+        self.upload_files()
 
     def cleanup(self) -> None:
         """Cleanup."""
