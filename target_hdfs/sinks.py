@@ -44,6 +44,7 @@ class HDFSSink(ParquetSink):
 
     def cleanup(self) -> None:
         """Cleanup."""
+        self.logger.info("Deleting old files from HDFS (before clean up)")
         super().cleanup()
         self.logger.info("Deleting old files from HDFS")
         delete_old_files(self.hdfs_destination_path)
