@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 import os.path
 from pathlib import Path
 
@@ -14,8 +13,6 @@ from target_hdfs.utils.hdfs import (
     upload_to_hdfs,
 )
 from target_hdfs.utils.parquet import get_parquet_files
-
-logger = logging.getLogger(__name__)
 
 
 class HDFSSink(ParquetSink):
@@ -31,7 +28,7 @@ class HDFSSink(ParquetSink):
     def upload_files(self) -> None:
         """Upload a local file to HDFS."""
         local_parquet_files = get_parquet_files(self.destination_path)
-        logger.info(f"Uploading {local_parquet_files} to HDFS")
+        self.logger.info(f"Uploading {local_parquet_files} to HDFS")
         for file in local_parquet_files:
             new_hdfs_file_path = os.path.join(
                 self.hdfs_destination_path,
