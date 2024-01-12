@@ -23,7 +23,9 @@ class HDFSSink(ParquetSink):
         self.hdfs_destination_path = os.path.join(
             self.config["hdfs_destination_path"], self.stream_name
         )
-        self.pyarrow_df = read_most_recent_file(self.hdfs_destination_path)
+        self.pyarrow_df = read_most_recent_file(
+            self.hdfs_destination_path, self.pyarrow_schema
+        )
 
     def upload_files(self) -> None:
         """Upload a local file to HDFS."""

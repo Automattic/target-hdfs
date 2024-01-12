@@ -86,7 +86,9 @@ def get_most_recent_file(hdfs_path: str) -> FileInfo:
     return max(files, key=lambda file: file.mtime) if files else None
 
 
-def read_most_recent_file(hdfs_file_path: str) -> pa.Table | None:
+def read_most_recent_file(
+    hdfs_file_path: str, pyarrow_schema: pa.Schema
+) -> pa.Table | None:
     """Read the last file from HDFS."""
     most_recent_file = get_most_recent_file(hdfs_file_path)
     # Force creates a new file if the last file is larger than 85% of the HDFS block size or does not exist
@@ -98,6 +100,14 @@ def read_most_recent_file(hdfs_file_path: str) -> pa.Table | None:
     with NamedTemporaryFile("wb") as tmp_file:
         download_from_hdfs(most_recent_file.path, tmp_file.name)
         parquet_df = pa.parquet.read_table(tmp_file.name)
+        if parquet_df.schema != pyarrow_schema:
+            logger.warning(
+                f"Schema of the file {most_recent_file.path} does not match the expected schema. "
+                f"The existing file will be ignored and will not be used to append new rows.\n"
+                f"Schema of the file: {parquet_df.schema}\n"
+                f"Schema of the stream: {pyarrow_schema}"
+            )
+            return None
         # To make sure that the file will be correctly processed, we set the file as old
         if most_recent_file.extension != ".parquet_old":
             set_file_as_old(most_recent_file.path)
