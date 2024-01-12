@@ -23,8 +23,11 @@ class HDFSSink(ParquetSink):
         self.hdfs_destination_path = os.path.join(
             self.config["hdfs_destination_path"], self.stream_name
         )
-        self.pyarrow_df = read_most_recent_file(
-            self.hdfs_destination_path, self.pyarrow_schema
+        # Don't read the most recent file if partition_cols is set
+        self.pyarrow_df = (
+            read_most_recent_file(self.hdfs_destination_path, self.pyarrow_schema)
+            if not self.config.get("partition_cols")
+            else None
         )
         self.append_data_to_existing_file = self.pyarrow_df is not None
 
