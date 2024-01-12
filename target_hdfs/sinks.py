@@ -26,6 +26,7 @@ class HDFSSink(ParquetSink):
         self.pyarrow_df = read_most_recent_file(
             self.hdfs_destination_path, self.pyarrow_schema
         )
+        self.append_data_to_existing_file = self.pyarrow_df is not None
 
     def upload_files(self) -> None:
         """Upload a local file to HDFS."""
@@ -47,4 +48,5 @@ class HDFSSink(ParquetSink):
     def clean_up(self) -> None:
         """Cleanup."""
         super().clean_up()
-        delete_old_files(self.hdfs_destination_path)
+        if self.append_data_to_existing_file:
+            delete_old_files(self.hdfs_destination_path)

@@ -104,8 +104,8 @@ def read_most_recent_file(
             logger.warning(
                 f"Schema of the file {most_recent_file.path} does not match the expected schema. "
                 f"The existing file will be ignored and will not be used to append new rows.\n"
-                f"Schema of the file: {parquet_df.schema}\n"
-                f"Schema of the stream: {pyarrow_schema}"
+                f"Schema of the file: \n{parquet_df.schema}\n"
+                f"Schema of the stream: \n{pyarrow_schema}"
             )
             return None
         # To make sure that the file will be correctly processed, we set the file as old
