@@ -35,8 +35,8 @@ class HDFSSink(ParquetSink):
                 self.config["hdfs_relative_block_size_limit"],
             )
             if not self.config.get("partition_cols") and not self.skip_existing_files
-            else {}
-        )
+            else None
+        ) or {}
         self.hdfs_file_path = hdfs_file.get("path")
         self.pyarrow_df = hdfs_file.get("content")
 
