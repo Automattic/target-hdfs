@@ -1,17 +1,17 @@
 from __future__ import annotations
 
+import logging
 from functools import cache
 from subprocess import run
 from tempfile import NamedTemporaryFile
 from typing import TypedDict
 
 import pyarrow as pa
-import singer
 from pyarrow._fs import FileInfo, FileType
 
 from target_hdfs.utils import convert_size_to_bytes
 
-logger = singer.get_logger()
+logger = logging.getLogger(__name__)
 
 
 class SchemaChangedError(Exception):
