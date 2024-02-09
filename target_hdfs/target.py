@@ -28,7 +28,14 @@ class TargetHDFS(TargetParquet):
                     th.StringType,
                     description="HDFS Destination Path",
                     required=True,
-                )
+                ),
+                th.Property(
+                    "hdfs_relative_block_size_limit",
+                    th.NumberType,
+                    description="HDFS Relative Block Size Limit (default: 0.85), if the size is lower than this limit, "
+                    "the data will be appended to the existing file",
+                    default=0.85,
+                ),
             ).to_dict()
         )
 

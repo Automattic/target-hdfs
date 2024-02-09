@@ -25,7 +25,11 @@ class HDFSSink(ParquetSink):
         )
         # Don't read the most recent file if partition_cols is set
         self.pyarrow_df = (
-            read_most_recent_file(self.hdfs_destination_path, self.pyarrow_schema)
+            read_most_recent_file(
+                self.hdfs_destination_path,
+                self.pyarrow_schema,
+                self.config["hdfs_relative_block_size_limit"],
+            )
             if not self.config.get("partition_cols")
             else None
         )

@@ -87,13 +87,15 @@ def get_most_recent_file(hdfs_path: str) -> FileInfo:
 
 
 def read_most_recent_file(
-    hdfs_file_path: str, pyarrow_schema: pa.Schema
+    hdfs_file_path: str,
+    pyarrow_schema: pa.Schema,
+    hdfs_relative_block_size_limit: float,
 ) -> pa.Table | None:
     """Read the last file from HDFS."""
     most_recent_file = get_most_recent_file(hdfs_file_path)
     # Force creates a new file if the last file is larger than 85% of the HDFS block size or does not exist
     if not most_recent_file or (
-        most_recent_file.size >= get_hdfs_block_size() * 0.85
+        most_recent_file.size >= get_hdfs_block_size() * hdfs_relative_block_size_limit
         and most_recent_file.extension != ".parquet_old"
     ):
         return None
