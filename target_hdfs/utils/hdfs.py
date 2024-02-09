@@ -100,8 +100,6 @@ def read_most_recent_file(
     )
     most_recent_file = get_most_recent_file(hdfs_file_path)
 
-    logger.info(f"Most recent file: {most_recent_file} bytes")
-
     # Force creates a new file if the last file is larger than 85% of the HDFS block size or does not exist
     if not most_recent_file or (most_recent_file.size >= block_size_limit):
         return None
