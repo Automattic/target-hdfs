@@ -23,6 +23,7 @@ class HDFSSink(ParquetSink):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.logger.info(f"Target-hdfs initialized with {self.config}")
         self.hdfs_destination_path = os.path.join(
             self.config["hdfs_destination_path"], self.stream_name
         )

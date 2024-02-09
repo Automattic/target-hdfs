@@ -93,10 +93,11 @@ def read_most_recent_file(
     hdfs_block_size_limit: str | None,
 ) -> HDFSFile | None:
     """Read the last file from HDFS."""
-    if hdfs_block_size_limit:
-        block_size_limit = convert_size_to_bytes(hdfs_block_size_limit)
-    else:
-        block_size_limit = int(get_hdfs_block_size() * 0.85)
+    block_size_limit = (
+        convert_size_to_bytes(hdfs_block_size_limit)
+        if hdfs_block_size_limit
+        else get_hdfs_block_size() * 0.85
+    )
     most_recent_file = get_most_recent_file(hdfs_file_path)
 
     logger.info(f"Most recent file: {most_recent_file} bytes")
