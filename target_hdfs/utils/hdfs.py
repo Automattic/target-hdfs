@@ -36,7 +36,9 @@ def get_hdfs_block_size() -> int:
     """Run the HDFS getconf command to get HDFS blocksize."""
     cmd = ["hdfs", "getconf", "-confKey", "dfs.blocksize"]
     result = run(cmd, capture_output=True, text=True, check=True)
-    return int(convert_size_to_bytes(result.stdout.strip()))
+    hdfs_block_size = int(convert_size_to_bytes(result.stdout.strip()))
+    logger.info(f"HDFS block size: {hdfs_block_size} bytes")
+    return hdfs_block_size
 
 
 def download_from_hdfs(source_path_hdfs: str, local_path: str) -> None:
@@ -92,6 +94,8 @@ def read_most_recent_file(
 ) -> HDFSFile | None:
     """Read the last file from HDFS."""
     most_recent_file = get_most_recent_file(hdfs_file_path)
+
+    logger.info(f"Most recent file: {most_recent_file} bytes")
 
     # Force creates a new file if the last file is larger than 85% of the HDFS block size or does not exist
     if not most_recent_file or (
