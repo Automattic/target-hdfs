@@ -36,6 +36,12 @@ class TargetHDFS(TargetParquet):
                     "the data will be appended to the existing file",
                     default=0.85,
                 ),
+                th.Property(
+                    "skip_existing_files",
+                    th.BooleanType,
+                    description="If set to true, the data will not be appended to the existing file",
+                    default=False,
+                ),
             ).to_dict()
         )
 
