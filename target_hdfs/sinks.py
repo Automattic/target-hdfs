@@ -26,13 +26,13 @@ class HDFSSink(ParquetSink):
         self.hdfs_destination_path = os.path.join(
             self.config["hdfs_destination_path"], self.stream_name
         )
-        self.skip_existing_files = self.config["skip_existing_files"]
+        self.skip_existing_files = self.config.get("skip_existing_files", False)
         # Don't read the most recent file if partition_cols is set or if skip_existing_files is set
         hdfs_file = (
             read_most_recent_file(
                 self.hdfs_destination_path,
                 self.pyarrow_schema,
-                self.config["hdfs_relative_block_size_limit"],
+                self.config.get("hdfs_relative_block_size_limit", 0.85),
             )
             if not self.config.get("partition_cols") and not self.skip_existing_files
             else None
