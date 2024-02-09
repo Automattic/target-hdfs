@@ -90,17 +90,20 @@ def get_most_recent_file(hdfs_path: str) -> FileInfo | None:
 def read_most_recent_file(
     hdfs_file_path: str,
     pyarrow_schema: pa.Schema,
-    hdfs_relative_block_size_limit: float,
+    hdfs_block_size_limit: str | None,
 ) -> HDFSFile | None:
     """Read the last file from HDFS."""
+    block_size_limit = (
+        convert_size_to_bytes(hdfs_block_size_limit)
+        if hdfs_block_size_limit
+        else get_hdfs_block_size() * 0.85
+    )
     most_recent_file = get_most_recent_file(hdfs_file_path)
 
     logger.info(f"Most recent file: {most_recent_file} bytes")
 
     # Force creates a new file if the last file is larger than 85% of the HDFS block size or does not exist
-    if not most_recent_file or (
-        most_recent_file.size >= get_hdfs_block_size() * hdfs_relative_block_size_limit
-    ):
+    if not most_recent_file or (most_recent_file.size >= block_size_limit):
         return None
 
     with NamedTemporaryFile("wb") as tmp_file:

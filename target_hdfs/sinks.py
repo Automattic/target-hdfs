@@ -32,7 +32,7 @@ class HDFSSink(ParquetSink):
             read_most_recent_file(
                 self.hdfs_destination_path,
                 self.pyarrow_schema,
-                self.config.get("hdfs_relative_block_size_limit", 0.85),
+                self.config.get("hdfs_block_size_limit"),
             )
             if not self.config.get("partition_cols") and not self.skip_existing_files
             else None

@@ -12,7 +12,7 @@ from target_hdfs.target import TargetHDFS
 SAMPLE_CONFIG: dict[str, t.Any] = {
     "hdfs_destination_path": "/tmp/meltano_test",
     "skip_existing_files": False,
-    "hdfs_relative_block_size_limit": 0.85,
+    "hdfs_block_size_limit": 800,
 }
 
 
