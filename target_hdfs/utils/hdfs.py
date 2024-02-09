@@ -74,7 +74,7 @@ def get_files(hdfs_path: str, extension: str = ".parquet") -> list[FileInfo]:
     return [file for file in file_list if file.base_name.endswith(extension)]
 
 
-def get_most_recent_file(hdfs_path: str) -> FileInfo:
+def get_most_recent_file(hdfs_path: str) -> FileInfo | None:
     """Get the most recent modified parquet file in a given HDFS path."""
     files = get_files(hdfs_path, extension=".parquet_old")
     assert (
