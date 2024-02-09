@@ -8,7 +8,6 @@ from target_hdfs.utils.hdfs import read_most_recent_file, SchemaChangedError
 @pytest.fixture(autouse=True)
 def mock_get_most_recent_file(monkeypatch):
     def mock_get_most_recent_file(hdfs_file_path):
-        # Mock implementation of get_most_recent_file
         return FileInfo(path="/mock/path", size=100)  # Example mock file
 
     monkeypatch.setattr(
@@ -52,9 +51,11 @@ def test_read_most_recent_file_successful():
     result = read_most_recent_file(
         hdfs_file_path, SCHEMA, hdfs_relative_block_size_limit
     )
-    assert result is not None
-    assert "content" in result
-    assert "path" in result
+    expected_content = pa.Table.from_pydict(
+        {'col1': [1, 2, 3], 'col2': ['a', 'b', 'c'], 'col3': [True, False, True]}
+    )
+    assert result['content'] == expected_content
+    assert result['path'] == "/mock/path"
 
 
 def test_read_most_recent_file_file_too_large():
@@ -66,13 +67,6 @@ def test_read_most_recent_file_file_too_large():
         hdfs_file_path, SCHEMA, hdfs_relative_block_size_limit
     )
     assert result is None
-
-
-def test_read_most_recent_file_schema_correct():
-    # Test when the schema of the file doesn't match the expected schema
-    hdfs_file_path = "/some/hdfs/path"
-    hdfs_relative_block_size_limit = 0.85  # Example block size limit
-    read_most_recent_file(hdfs_file_path, SCHEMA, hdfs_relative_block_size_limit)
 
 
 def test_read_most_recent_file_schema_mismatch():
