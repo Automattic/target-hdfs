@@ -92,11 +92,13 @@ def read_most_recent_file(
 ) -> HDFSFile | None:
     """Read the last file from HDFS."""
     most_recent_file = get_most_recent_file(hdfs_file_path)
+
     # Force creates a new file if the last file is larger than 85% of the HDFS block size or does not exist
     if not most_recent_file or (
         most_recent_file.size >= get_hdfs_block_size() * hdfs_relative_block_size_limit
     ):
         return None
+
     with NamedTemporaryFile("wb") as tmp_file:
         download_from_hdfs(most_recent_file.path, tmp_file.name)
         parquet_df = pa.parquet.read_table(tmp_file.name)
