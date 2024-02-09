@@ -13,6 +13,10 @@ from target_hdfs.utils import convert_size_to_bytes
 logger = logging.getLogger(__name__)
 
 
+class SchemaChangedError(Exception):
+    """Exception for schema change."""
+
+
 @cache
 def get_hdfs_client() -> pa.fs.HadoopFileSystem:
     """Get a HDFS client."""
@@ -103,13 +107,11 @@ def read_most_recent_file(
         download_from_hdfs(most_recent_file.path, tmp_file.name)
         parquet_df = pa.parquet.read_table(tmp_file.name)
         if parquet_df.schema != pyarrow_schema:
-            logger.warning(
-                f"Schema of the file {most_recent_file.path} does not match the expected schema. "
-                f"The existing file will be ignored and will not be used to append new rows.\n"
+            raise SchemaChangedError(
+                f"Schema of the file {most_recent_file.path} does not match the expected schema.\n"
                 f"Schema of the file: \n{parquet_df.schema}\n"
                 f"Schema of the stream: \n{pyarrow_schema}"
             )
-            return None
         # To make sure that the file will be correctly processed, we set the file as old
         if most_recent_file.extension != ".parquet_old":
             set_file_as_old(most_recent_file.path)
