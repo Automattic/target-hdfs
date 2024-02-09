@@ -4,6 +4,7 @@ import logging
 from functools import cache
 from subprocess import run
 from tempfile import NamedTemporaryFile
+from typing import TypedDict
 
 import pyarrow as pa
 from pyarrow._fs import FileInfo, FileType
@@ -15,6 +16,13 @@ logger = logging.getLogger(__name__)
 
 class SchemaChangedError(Exception):
     """Exception for schema change."""
+
+
+class HDFSFile(TypedDict):
+    """HDFS file content (pyarrow table) and path."""
+
+    content: pa.Table
+    path: str
 
 
 @cache
@@ -62,13 +70,6 @@ def replace_old_file_with_new_file(new_file_path: str) -> None:
     hdfs_client.move(new_file_path, new_file_path.replace("_new", ""))
 
 
-def set_file_as_old(file_path: str) -> None:
-    """Replace the old file with the new file in HDFS."""
-    if not file_path.endswith("_old"):
-        hdfs_client = get_hdfs_client()
-        hdfs_client.move(file_path, f"{file_path}_old")
-
-
 def get_files(hdfs_path: str, extension: str = ".parquet") -> list[FileInfo]:
     """Get all parquet files in a given HDFS path."""
     hdfs_client = get_hdfs_client()
@@ -80,12 +81,6 @@ def get_files(hdfs_path: str, extension: str = ".parquet") -> list[FileInfo]:
 
 def get_most_recent_file(hdfs_path: str) -> FileInfo | None:
     """Get the most recent modified parquet file in a given HDFS path."""
-    files = get_files(hdfs_path, extension=".parquet_old")
-    assert (
-        len(files) <= 1
-    ), "There is more than one old file in the HDFS path which is not expected"
-    if files:
-        return files[0]
     files = get_files(hdfs_path)
     return max(files, key=lambda file: file.mtime) if files else None
 
@@ -94,13 +89,12 @@ def read_most_recent_file(
     hdfs_file_path: str,
     pyarrow_schema: pa.Schema,
     hdfs_relative_block_size_limit: float,
-) -> pa.Table | None:
+) -> HDFSFile | None:
     """Read the last file from HDFS."""
     most_recent_file = get_most_recent_file(hdfs_file_path)
     # Force creates a new file if the last file is larger than 85% of the HDFS block size or does not exist
     if not most_recent_file or (
         most_recent_file.size >= get_hdfs_block_size() * hdfs_relative_block_size_limit
-        and most_recent_file.extension != ".parquet_old"
     ):
         return None
     with NamedTemporaryFile("wb") as tmp_file:
@@ -112,15 +106,4 @@ def read_most_recent_file(
                 f"Schema of the file: \n{parquet_df.schema}\n"
                 f"Schema of the stream: \n{pyarrow_schema}"
             )
-        # To make sure that the file will be correctly processed, we set the file as old
-        if most_recent_file.extension != ".parquet_old":
-            set_file_as_old(most_recent_file.path)
-        return parquet_df
-
-
-def delete_old_files(hdfs_path: str) -> None:
-    """Delete old files in HDFS."""
-    for file in get_files(hdfs_path, extension=".parquet_old"):
-        hdfs_client = get_hdfs_client()
-        hdfs_client.delete_file(file.path)
-        logger.info(f"Old File {file.path} deleted from HDFS")
+        return {"content": parquet_df, "path": most_recent_file.path}

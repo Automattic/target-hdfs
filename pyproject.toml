@@ -49,6 +49,7 @@ ignore = [
     "EM102",   # Exception must not use an f-string literal, assign to variable first"
     "TCH002",  # Move third-party import `pyarrow._fs.FileInfo` into a type-checking block
     "S603",    # `subprocess` call: check for execution of untrusted input
+    "EM101",   # Exception must not use a string literal
 ]
 select = ["ALL"]
 
