@@ -11,6 +11,8 @@ from target_hdfs.target import TargetHDFS
 
 SAMPLE_CONFIG: dict[str, t.Any] = {
     "hdfs_destination_path": "/tmp/meltano_test",
+    "skip_existing_files": False,
+    "hdfs_relative_block_size_limit": 0.85,
 }
 
 
@@ -18,7 +20,6 @@ SAMPLE_CONFIG: dict[str, t.Any] = {
 def mock_hdfs_requests(monkeypatch):
     monkeypatch.setattr("target_hdfs.sinks.read_most_recent_file", lambda *args: None)
     monkeypatch.setattr("target_hdfs.sinks.upload_to_hdfs", lambda *args: None)
-    monkeypatch.setattr("target_hdfs.sinks.delete_old_files", lambda *args: None)
 
 
 # Run standard built-in target tests from the SDK:
