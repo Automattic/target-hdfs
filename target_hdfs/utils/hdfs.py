@@ -56,13 +56,14 @@ def download_from_hdfs(source_path_hdfs: str, local_path: str) -> None:
 def upload_to_hdfs(local_file: str, destination_path_hdfs: str) -> None:
     """Upload a local file to HDFS."""
     logger.debug(f"Uploading file to HDFS: {destination_path_hdfs} ")
+    new_hdfs_file = destination_path_hdfs + "_new"
     pa.fs.copy_files(
         local_file,
-        destination_path_hdfs + "_new",
+        new_hdfs_file,
         source_filesystem=pa.fs.LocalFileSystem(),
         destination_filesystem=get_hdfs_client(),
     )
-    replace_old_file_with_new_file(destination_path_hdfs)
+    replace_old_file_with_new_file(new_hdfs_file)
     logger.info(f"File {destination_path_hdfs} uploaded to HDFS")
 
 
