@@ -39,6 +39,8 @@ class HDFSSink(ParquetSink):
             else None
         ) or {}
         self.hdfs_file_path = hdfs_file.get("path")
+        # pyarrow_df is used by target-parquet (super class) as a temporary storage for the data
+        # (updated on every batch where it is converted from a list of records to a pyarrow table)
         self.pyarrow_df = hdfs_file.get("content")
 
     def upload_files(self) -> None:
