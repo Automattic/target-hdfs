@@ -77,7 +77,7 @@ def get_files(hdfs_path: str, extension: str = ".parquet") -> list[FileInfo]:
     hdfs_client = get_hdfs_client()
     if hdfs_client.get_file_info(hdfs_path).type == FileType.NotFound:
         return []
-    file_list = hdfs_client.get_file_info(pa.fs.FileSelector(hdfs_path, recursive=True))
+    file_list = hdfs_client.get_file_info(pa.fs.FileSelector(hdfs_path))
     return [file for file in file_list if file.base_name.endswith(extension)]
 
 
