@@ -1,0 +1,29 @@
+version: 1
+send_anonymous_usage_stats: true
+project_id: target-hdfs
+default_environment: test
+environments:
+- name: test
+plugins:
+  extractors:
+  - name: tap-carbon-intensity
+    variant: meltano
+    pip_url: git+https://gitlab.com/meltano/tap-carbon-intensity.git
+  loaders:
+  - name: "target-hdfs"
+    namespace: "target_hdfs"
+    pip_url: -e .
+    capabilities:
+    - about
+    - stream-maps
+    - record-flattening
+    config:
+      start_date: '2010-01-01T00:00:00Z'
+    settings:
+    - name: hdfs_destination_path
+    - name: compression_method
+    - name: max_pyarrow_table_size
+    - name: max_batch_size
+    - name: extra_fields
+    - name: extra_fields_types
+    - name: partition_cols
