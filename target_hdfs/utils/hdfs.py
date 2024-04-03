@@ -43,7 +43,7 @@ def get_hdfs_block_size() -> int:
 
 def download_from_hdfs(source_path_hdfs: str, local_path: str) -> None:
     """Download a file from HDFS."""
-    logger.debug(f"Uploading file from HDFS: {source_path_hdfs} ")
+    logger.debug(f"Download file from HDFS: {source_path_hdfs} ")
     pa.fs.copy_files(
         source_path_hdfs,
         local_path,
