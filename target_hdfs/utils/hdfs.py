@@ -115,4 +115,7 @@ def read_most_recent_file(
                 f"Schema of the file: \n{parquet_df.schema}\n"
                 f"Schema of the stream: \n{pyarrow_schema}"
             )
+        if not parquet_df.schema.equals(pyarrow_schema):
+            logger.info("Rearranging columns to match the schema")
+            parquet_df = parquet_df.select(pyarrow_schema.names)
         return {"content": parquet_df, "path": most_recent_file.path}
