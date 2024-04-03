@@ -108,7 +108,7 @@ def read_most_recent_file(
     with NamedTemporaryFile("wb") as tmp_file:
         download_from_hdfs(most_recent_file.path, tmp_file.name)
         parquet_df = pa.parquet.read_table(tmp_file.name)
-        if not parquet_df.schema.equals(pyarrow_schema):
+        if set(parquet_df.schema).difference(set(pyarrow_schema)):
             raise SchemaChangedError(
                 f"Schema of the file {most_recent_file.path} does not match the expected schema.\n"
                 f"Schema of the file: \n{parquet_df.schema}\n"
