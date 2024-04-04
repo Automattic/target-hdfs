@@ -43,7 +43,7 @@ def get_hdfs_block_size() -> int:
 
 def download_from_hdfs(source_path_hdfs: str, local_path: str) -> None:
     """Download a file from HDFS."""
-    logger.debug(f"Uploading file from HDFS: {source_path_hdfs} ")
+    logger.debug(f"Download file from HDFS: {source_path_hdfs} ")
     pa.fs.copy_files(
         source_path_hdfs,
         local_path,
@@ -108,10 +108,14 @@ def read_most_recent_file(
     with NamedTemporaryFile("wb") as tmp_file:
         download_from_hdfs(most_recent_file.path, tmp_file.name)
         parquet_df = pa.parquet.read_table(tmp_file.name)
-        if parquet_df.schema != pyarrow_schema:
+        if set(parquet_df.schema).symmetric_difference(set(pyarrow_schema)):
             raise SchemaChangedError(
                 f"Schema of the file {most_recent_file.path} does not match the expected schema.\n"
+                f"Difference: \n{set(parquet_df.schema).symmetric_difference(set(pyarrow_schema))}\n"
                 f"Schema of the file: \n{parquet_df.schema}\n"
                 f"Schema of the stream: \n{pyarrow_schema}"
             )
+        if not parquet_df.schema.equals(pyarrow_schema):
+            logger.info("Rearranging columns to match the schema")
+            parquet_df = parquet_df.select(pyarrow_schema.names)
         return {"content": parquet_df, "path": most_recent_file.path}
