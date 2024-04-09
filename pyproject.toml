@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "target-hdfs"
-version = "1.0.1"
+version = "1.0.2"
 description = "`target-hdfs` is a Singer target for hdfs, built with the Meltano Singer SDK."
 readme = "README.md"
 authors = ["Joao Amaral <joao.amaral@automattic.com>"]
