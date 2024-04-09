@@ -67,5 +67,6 @@ class HDFSSink(ParquetSink):
 
     def write_file(self) -> None:
         """Write a local file and upload to hdfs."""
+        self.logger.info("Total rows processed: %s", self._total_records_read)
         super().write_file()
         self.upload_files()
