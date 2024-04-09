@@ -68,6 +68,6 @@ class HDFSSink(ParquetSink):
     def write_file(self) -> None:
         """Write a local file and upload to hdfs."""
         if self._total_records_read > 0:
-            self.logger.debug("Total rows processed: %s", self._total_records_read)
+            self.logger.debug("Total records read: %s", self._total_records_read)
             super().write_file()
             self.upload_files()
