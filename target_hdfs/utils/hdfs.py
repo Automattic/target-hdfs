@@ -63,14 +63,7 @@ def upload_to_hdfs(local_file: str, destination_path_hdfs: str) -> None:
         source_filesystem=pa.fs.LocalFileSystem(),
         destination_filesystem=get_hdfs_client(),
     )
-    replace_old_file_with_new_file(new_hdfs_file)
     logger.info(f"File {destination_path_hdfs} uploaded to HDFS")
-
-
-def replace_old_file_with_new_file(new_file_path: str) -> None:
-    """Replace the old file with the new file in HDFS."""
-    hdfs_client = get_hdfs_client()
-    hdfs_client.move(new_file_path, new_file_path.replace("_new", ""))
 
 
 def get_files(hdfs_path: str, extension: str = ".parquet") -> list[FileInfo]:
