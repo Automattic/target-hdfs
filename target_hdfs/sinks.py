@@ -61,7 +61,7 @@ class HDFSSink(ParquetSink):
             != self.hdfs_file_modified
         ):
             raise CanNotUploadFileError(
-                "The HDFS file was modified after it was loaded."
+                f"The HDFS file {self.hdfs_file_path} was modified after it was loaded."
             )
 
         self.logger.debug(f"Uploading {local_parquet_files} to HDFS")
