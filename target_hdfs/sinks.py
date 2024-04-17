@@ -8,6 +8,7 @@ from pathlib import Path
 from target_parquet.sinks import ParquetSink
 
 from target_hdfs.utils.hdfs import (
+    get_hdfs_modified_datetime,
     read_most_recent_file,
     upload_to_hdfs,
 )
@@ -39,6 +40,7 @@ class HDFSSink(ParquetSink):
             else None
         ) or {}
         self.hdfs_file_path = hdfs_file.get("path")
+        self.hdfs_file_modified = hdfs_file.get("modified")
         # pyarrow_df is used by target-parquet (super class) as a temporary storage for the data
         # (updated on every batch where it is converted from a list of records to a pyarrow table)
         self.pyarrow_df = hdfs_file.get("content")
@@ -51,6 +53,15 @@ class HDFSSink(ParquetSink):
             raise CanNotUploadFileError(
                 "Multiple files were found in the local path, "
                 "but only one HDFS file was loaded."
+            )
+
+        if (
+            self.hdfs_file_path
+            and get_hdfs_modified_datetime(self.hdfs_file_path)
+            != self.hdfs_file_modified
+        ):
+            raise CanNotUploadFileError(
+                f"The HDFS file {self.hdfs_file_path} was modified after it was loaded."
             )
 
         self.logger.debug(f"Uploading {local_parquet_files} to HDFS")

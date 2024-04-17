@@ -4,12 +4,15 @@ import logging
 from functools import cache
 from subprocess import run
 from tempfile import NamedTemporaryFile
-from typing import TypedDict
+from typing import TYPE_CHECKING, TypedDict
 
 import pyarrow as pa
 from pyarrow._fs import FileInfo, FileType
 
 from target_hdfs.utils import convert_size_to_bytes
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +26,7 @@ class HDFSFile(TypedDict):
 
     content: pa.Table
     path: str
+    modified: datetime
 
 
 @cache
@@ -88,6 +92,12 @@ def get_most_recent_file(hdfs_path: str) -> FileInfo | None:
     return max(files, key=lambda file: file.mtime) if files else None
 
 
+def get_hdfs_modified_datetime(hdfs_file_path: str) -> datetime | None:
+    """Return the modified datetime of the HDFS file."""
+    hdfs_client = get_hdfs_client()
+    return hdfs_client.get_file_info(hdfs_file_path).mtime
+
+
 def read_most_recent_file(
     hdfs_file_path: str,
     pyarrow_schema: pa.Schema,
@@ -107,6 +117,10 @@ def read_most_recent_file(
 
     with NamedTemporaryFile("wb") as tmp_file:
         download_from_hdfs(most_recent_file.path, tmp_file.name)
+        logger.info(
+            f"Reading the most recent file in hdfs: {most_recent_file.path} "
+            f"last modified: {most_recent_file.mtime}"
+        )
         parquet_df = pa.parquet.read_table(tmp_file.name)
         if set(parquet_df.schema).symmetric_difference(set(pyarrow_schema)):
             raise SchemaChangedError(
@@ -118,4 +132,8 @@ def read_most_recent_file(
         if not parquet_df.schema.equals(pyarrow_schema):
             logger.info("Rearranging columns to match the schema")
             parquet_df = parquet_df.select(pyarrow_schema.names)
-        return {"content": parquet_df, "path": most_recent_file.path}
+        return {
+            "content": parquet_df,
+            "path": most_recent_file.path,
+            "modified": most_recent_file.mtime,
+        }
