@@ -46,7 +46,6 @@ class HDFSSink(ParquetSink):
     def upload_files(self, *, new_file: bool) -> None:
         """Upload a local file to HDFS."""
         local_parquet_files = get_parquet_files(self.destination_path)
-        hdfs_file_path = self.hdfs_file_path
 
         if len(local_parquet_files) > 1 and self.hdfs_file_path:
             raise CanNotUploadFileError(
@@ -56,15 +55,15 @@ class HDFSSink(ParquetSink):
 
         self.logger.debug(f"Uploading {local_parquet_files} to HDFS")
         for file in local_parquet_files:
-            hdfs_file_path = hdfs_file_path or os.path.join(
+            self.hdfs_file_path = self.hdfs_file_path or os.path.join(
                 self.hdfs_destination_path,
                 os.path.relpath(file, self.destination_path),
             )
-            upload_to_hdfs(file, hdfs_file_path)
+            upload_to_hdfs(file, self.hdfs_file_path)
             Path(file).unlink()
 
         # Reset hdfs_file_path to None after uploading (no file to append)
-        self.hdfs_file_path = None if new_file else hdfs_file_path
+        self.hdfs_file_path = None if new_file else self.hdfs_file_path
 
     def write_file(self, *, new_file: bool) -> None:
         """Write a local file and upload to hdfs."""
