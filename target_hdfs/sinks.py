@@ -43,9 +43,10 @@ class HDFSSink(ParquetSink):
         # (updated on every batch where it is converted from a list of records to a pyarrow table)
         self.pyarrow_df = hdfs_file.get("content")
 
-    def upload_files(self) -> None:
+    def upload_files(self, *, new_file: bool) -> None:
         """Upload a local file to HDFS."""
         local_parquet_files = get_parquet_files(self.destination_path)
+        hdfs_file_path = self.hdfs_file_path
 
         if len(local_parquet_files) > 1 and self.hdfs_file_path:
             raise CanNotUploadFileError(
@@ -55,7 +56,7 @@ class HDFSSink(ParquetSink):
 
         self.logger.debug(f"Uploading {local_parquet_files} to HDFS")
         for file in local_parquet_files:
-            hdfs_file_path = self.hdfs_file_path or os.path.join(
+            hdfs_file_path = hdfs_file_path or os.path.join(
                 self.hdfs_destination_path,
                 os.path.relpath(file, self.destination_path),
             )
@@ -63,11 +64,11 @@ class HDFSSink(ParquetSink):
             Path(file).unlink()
 
         # Reset hdfs_file_path to None after uploading (no file to append)
-        self.hdfs_file_path = None
+        self.hdfs_file_path = None if new_file else hdfs_file_path
 
-    def write_file(self) -> None:
+    def write_file(self, *, new_file: bool) -> None:
         """Write a local file and upload to hdfs."""
         if self._total_records_read > 0:
             self.logger.debug("Total records read: %s", self._total_records_read)
-            super().write_file()
-            self.upload_files()
+            super().write_file(new_file=new_file)
+            self.upload_files(new_file=new_file)

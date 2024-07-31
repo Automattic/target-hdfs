@@ -15,7 +15,7 @@ python = ">=3.9,<4"
 singer-sdk = { version="~=0.35.1" }
 fs-s3fs = { version = "~=1.1.1", optional = true }
 requests = "~=2.31.0"
-target-parquet = { git = "https://github.com/Automattic/target-parquet.git", branch = "v1.0.0" }
+target-parquet = { git = "https://github.com/Automattic/target-parquet.git", branch = "save-file-after-every-batch" }
 numpy = "<2.0.0"
 
 [tool.poetry.dev-dependencies]
