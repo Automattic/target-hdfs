@@ -18,7 +18,7 @@ def sample_config():
 
 @patch("target_hdfs.sinks.upload_to_hdfs", return_value=None)
 def test_upload(mock_upload_to_hdfs, sample_config):
-    """Test that the target creates multiple files when the pyarrow file size limit is reached"""
+    """Test if the target uploads the expected file to HDFS."""
     stream_name = f"test_schema"
     schema_message = {
         "type": "SCHEMA",
