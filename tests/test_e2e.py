@@ -65,7 +65,7 @@ def test_upload(mock_upload_to_hdfs, sample_config):
         finalize=True,
     )
 
-    # 10 files are created but we should have 100 uploads
+    # 10 files are created but we should have 100 uploads (considering the intermediate uploads after batch process)
     expected_calls = [
         call(
             f"output/test_schema/test_schema-20231114_221320-{i}-0.gz.parquet",
