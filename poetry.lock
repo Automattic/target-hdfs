@@ -1456,8 +1456,8 @@ s3 = ["fs-s3fs (>=1.1.1,<1.2.0)"]
 [package.source]
 type = "git"
 url = "https://github.com/Automattic/target-parquet.git"
-reference = "save-file-after-every-batch"
-resolved_reference = "9ae416d43af5c9c5d1a05b92d9ab840f11c6f873"
+reference = "v1.0.1"
+resolved_reference = "838183ac2859fcb60bb05d0f50e896a3bf3b8875"
 
 [[package]]
 name = "tomli"
@@ -1529,4 +1529,4 @@ s3 = ["fs-s3fs"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<4"
-content-hash = "e524b3251f2d0f4159b0224745ccc90d2dcb58192d2198839f7ab24cc9366b85"
+content-hash = "02b0d8c9e27d4bda5a62984ac94955816b70570f6085ff2c3644a20bd17f0301"
