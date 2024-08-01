@@ -63,7 +63,8 @@ class HDFSSink(ParquetSink):
             Path(file).unlink()
 
         # Reset hdfs_file_path to None after uploading (no file to append)
-        self.hdfs_file_path = None if new_file else self.hdfs_file_path
+        if new_file:
+            self.hdfs_file_path = None
 
     def write_file(self, *, new_file: bool) -> None:
         """Write a local file and upload to hdfs."""
