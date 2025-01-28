@@ -45,6 +45,7 @@ class HDFSSink(ParquetSink):
 
     def upload_files(self, *, new_file: bool) -> None:
         """Upload a local file to HDFS."""
+        raise Exception("TEST - Empty State")
         local_parquet_files = get_parquet_files(self.destination_path)
 
         if len(local_parquet_files) > 1 and self.hdfs_file_path:
