@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from functools import cache
 from subprocess import DEVNULL, PIPE, run
 from tempfile import NamedTemporaryFile
@@ -11,7 +12,9 @@ from pyarrow._fs import FileInfo, FileType
 
 from target_hdfs.utils import convert_size_to_bytes
 
-logging.getLogger("org.apache.hadoop.hdfs").setLevel(logging.ERROR)
+# Suppress all warnings from pyarrow related to HDFS
+warnings.filterwarnings("ignore", category=UserWarning, module="pyarrow")
+
 logger = logging.getLogger(__name__)
 
 
