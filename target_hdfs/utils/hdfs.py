@@ -45,7 +45,7 @@ def download_from_hdfs(source_path_hdfs: str, local_path: str) -> None:
     """Download a file from HDFS."""
     logger.info(f"Download file from HDFS: {source_path_hdfs} ")
     cmd = ["hdfs", "dfs", "-get", source_path_hdfs, local_path]
-    run(cmd, stdout=DEVNULL, stderr=DEVNULL, check=True)
+    run(cmd, check=True)
     logger.info(
         f"File {source_path_hdfs} downloaded from hdfs to {local_path} : {get_hdfs_client().exists(local_path)}"
     )
