@@ -46,10 +46,10 @@ def download_from_hdfs(source_path_hdfs: str, local_path: str) -> None:
     """Download a file from HDFS."""
     # Removing local temp file as hdfs -get command does not overwrite it
     Path(local_path).unlink(missing_ok=True)
-    logger.info(f"Download file from HDFS: {source_path_hdfs} ")
+    logger.debug(f"Download file from HDFS: {source_path_hdfs} ")
     cmd = ["hdfs", "dfs", "-get", source_path_hdfs, local_path]
     run(cmd, stdout=DEVNULL, stderr=DEVNULL, check=True)
-    logger.info(f"File {source_path_hdfs} downloaded from hdfs to {local_path}")
+    logger.debug(f"File {source_path_hdfs} downloaded from hdfs to {local_path}")
 
 
 def upload_to_hdfs(local_file: str, destination_path_hdfs: str) -> None:
