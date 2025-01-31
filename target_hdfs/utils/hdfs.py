@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import warnings
 from functools import cache
 from subprocess import DEVNULL, PIPE, run
 from tempfile import NamedTemporaryFile
@@ -11,9 +10,6 @@ import pyarrow as pa
 from pyarrow._fs import FileInfo, FileType
 
 from target_hdfs.utils import convert_size_to_bytes
-
-# Suppress all warnings from pyarrow related to HDFS
-warnings.filterwarnings("ignore", category=UserWarning, module="pyarrow")
 
 logger = logging.getLogger(__name__)
 
@@ -47,14 +43,12 @@ def get_hdfs_block_size() -> int:
 
 def download_from_hdfs(source_path_hdfs: str, local_path: str) -> None:
     """Download a file from HDFS."""
-    logger.debug(f"Download file from HDFS: {source_path_hdfs} ")
-    pa.fs.copy_files(
-        source_path_hdfs,
-        local_path,
-        source_filesystem=get_hdfs_client(),
-        destination_filesystem=pa.fs.LocalFileSystem(),
+    logger.info(f"Download file from HDFS: {source_path_hdfs} ")
+    cmd = ["hdfs", "dfs", "-get", source_path_hdfs, local_path]
+    run(cmd, stdout=DEVNULL, stderr=DEVNULL, check=True)
+    logger.info(
+        f"File {source_path_hdfs} downloaded from hdfs to {local_path} : {get_hdfs_client().exists(local_path)}"
     )
-    logger.debug(f"File {source_path_hdfs} downloaded from hdfs to {local_path} ")
 
 
 def upload_to_hdfs(local_file: str, destination_path_hdfs: str) -> None:
