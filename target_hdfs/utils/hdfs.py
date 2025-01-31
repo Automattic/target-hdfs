@@ -11,6 +11,9 @@ from pyarrow._fs import FileInfo, FileType
 
 from target_hdfs.utils import convert_size_to_bytes
 
+logging.getLogger("pyarrow").setLevel(logging.ERROR)
+logging.getLogger("pyarrow._hdfs").setLevel(logging.ERROR)
+logging.getLogger("org.apache.hadoop.hdfs").setLevel(logging.ERROR)
 logger = logging.getLogger(__name__)
 
 
