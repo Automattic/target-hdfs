@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from functools import cache
-from subprocess import run
+from subprocess import DEVNULL, PIPE, run
 from tempfile import NamedTemporaryFile
 from typing import TypedDict
 
@@ -35,7 +35,7 @@ def get_hdfs_client() -> pa.fs.HadoopFileSystem:
 def get_hdfs_block_size() -> int:
     """Run the HDFS getconf command to get HDFS blocksize."""
     cmd = ["hdfs", "getconf", "-confKey", "dfs.blocksize"]
-    result = run(cmd, capture_output=True, text=True, check=True)
+    result = run(cmd, stdout=PIPE, stderr=DEVNULL, text=True, check=True)
     hdfs_block_size = int(convert_size_to_bytes(result.stdout.strip()))
     logger.info(f"HDFS block size: {hdfs_block_size} bytes")
     return hdfs_block_size
