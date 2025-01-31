@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from functools import cache
+from pathlib import Path
 from subprocess import DEVNULL, PIPE, run
 from tempfile import NamedTemporaryFile
 from typing import TypedDict
@@ -43,9 +44,11 @@ def get_hdfs_block_size() -> int:
 
 def download_from_hdfs(source_path_hdfs: str, local_path: str) -> None:
     """Download a file from HDFS."""
+    # Removing local temp file if it exists as hdfs get command does not overwrite the file
+    Path(local_path).unlink(missing_ok=True)
     logger.info(f"Download file from HDFS: {source_path_hdfs} ")
     cmd = ["hdfs", "dfs", "-get", source_path_hdfs, local_path]
-    run(cmd, check=True)
+    run(cmd, stdout=DEVNULL, stderr=DEVNULL, check=True)
     logger.info(
         f"File {source_path_hdfs} downloaded from hdfs to {local_path} : {get_hdfs_client().exists(local_path)}"
     )
