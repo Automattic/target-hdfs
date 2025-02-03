@@ -57,7 +57,7 @@ def upload_to_hdfs(local_file: str, destination_path_hdfs: str) -> None:
     logger.info(f"Uploading file to HDFS: {destination_path_hdfs} ")
     new_hdfs_file = destination_path_hdfs + "_new"
     cmd = ["hdfs", "dfs", "-put", "-f", local_file, new_hdfs_file]
-    run(cmd, stdout=DEVNULL, stderr=DEVNULL, check=True)
+    run(cmd, check=True)
     replace_old_file_with_new_file(new_hdfs_file)
     logger.info(f"File {destination_path_hdfs} uploaded to HDFS")
 
