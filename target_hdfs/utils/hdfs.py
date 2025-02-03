@@ -118,3 +118,5 @@ def read_most_recent_file(
             logger.info("Rearranging columns to match the schema")
             parquet_df = parquet_df.select(pyarrow_schema.names)
         return {"content": parquet_df, "path": most_recent_file.path}
+
+    raise Exception("test")  # noqa: TRY002
