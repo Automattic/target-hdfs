@@ -27,3 +27,5 @@ plugins:
     - name: extra_fields
     - name: extra_fields_types
     - name: partition_cols
+    - name: max_flatten_level
+      kind: integer
