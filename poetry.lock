@@ -1287,8 +1287,8 @@ s3 = ["fs-s3fs (>=1.1.1,<1.2.0)"]
 [package.source]
 type = "git"
 url = "https://github.com/Automattic/target-parquet.git"
-reference = "feature/add-no-flatten-schema-support"
-resolved_reference = "1763b26458775dda5b6e485fa71a24d201e17509"
+reference = "v1.1.0"
+resolved_reference = "4553c41987c08fe6b05ebb3b91b76e7ff50563d5"
 
 [[package]]
 name = "tomli"
@@ -1390,4 +1390,4 @@ s3 = []
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9,<4"
-content-hash = "21502452523e4e1a7ba1ba695216bf326c8e9ad67be87f5359bed7f2613bb163"
+content-hash = "a0ae4f4bec66d18476607935fe8846db4ca2ac4a0a7ba006cf5b3ee442fee741"
