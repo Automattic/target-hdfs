@@ -1267,7 +1267,7 @@ sqlcipher = ["sqlcipher3_binary"]
 
 [[package]]
 name = "target-parquet"
-version = "1.0.3"
+version = "1.1.0"
 description = "`target-parquet` is a Singer target for parquet, built with the Meltano Singer SDK."
 optional = false
 python-versions = ">=3.9,<4"
@@ -1287,8 +1287,8 @@ s3 = ["fs-s3fs (>=1.1.1,<1.2.0)"]
 [package.source]
 type = "git"
 url = "https://github.com/Automattic/target-parquet.git"
-reference = "v1.0.3"
-resolved_reference = "17d64527a383ba6df25b5d98c43c70133282abc8"
+reference = "feature/add-no-flatten-schema-support"
+resolved_reference = "1763b26458775dda5b6e485fa71a24d201e17509"
 
 [[package]]
 name = "tomli"
@@ -1390,4 +1390,4 @@ s3 = []
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9,<4"
-content-hash = "bcdddac9aca8620c7456c0b7bd784b57ab215f68c0f1ca69e8d99e238ed14c22"
+content-hash = "21502452523e4e1a7ba1ba695216bf326c8e9ad67be87f5359bed7f2613bb163"
