@@ -1,13 +1,14 @@
 """Test Configuration."""
 
 import pytest
-from pyarrow._fs import FileInfo
+
+from target_hdfs.utils.hdfs import FileSize
 
 
 @pytest.fixture(autouse=True)
 def mock_get_most_recent_file(monkeypatch):
     def mock_get_most_recent_file(hdfs_file_path):
-        return FileInfo(path="/mock/path", size=2048)  # Example mock file
+        return FileSize(path="/mock/path", size=2048)  # Example mock file
 
     monkeypatch.setattr(
         "target_hdfs.utils.hdfs.get_most_recent_file", mock_get_most_recent_file
@@ -37,3 +38,13 @@ def mock_hdfs_requests(monkeypatch):
 @pytest.fixture(autouse=True)
 def mock_time(monkeypatch):
     monkeypatch.setattr("time.time", lambda: 1700000000)
+
+
+@pytest.fixture(autouse=True)
+def mock_create_hdfs_directory(monkeypatch):
+    def mock_create_hdfs_directory(hdfs_destination_path):
+        pass
+
+    monkeypatch.setattr(
+        "target_hdfs.utils.hdfs.create_hdfs_directory", mock_create_hdfs_directory
+    )

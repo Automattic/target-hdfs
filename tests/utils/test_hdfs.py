@@ -1,7 +1,13 @@
+from unittest.mock import patch, Mock
+
 import pytest
 import pyarrow as pa
 
-from target_hdfs.utils.hdfs import read_most_recent_file, SchemaChangedError
+from target_hdfs.utils.hdfs import (
+    read_most_recent_file,
+    SchemaChangedError,
+    get_most_recent_file,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -60,3 +66,41 @@ def test_read_most_recent_file_schema_mismatch():
 
     with pytest.raises(SchemaChangedError):
         read_most_recent_file(hdfs_file_path, pyarrow_schema, hdfs_block_size_limit)
+
+
+@patch("target_hdfs.utils.hdfs.run")
+def test_get_most_recent_file(mock_run):
+    # Simulated output of `hdfs dfs -ls` with two parquet files
+    mock_run.return_value = Mock(
+        stdout=(
+            "Found 3 items\n"
+            "-rw-r--r--   3 user group 1234 2025-05-12 15:00 /path/to/first.parquet\n"
+            "-rw-r--r--   3 user group 4567 2025-05-13 16:00 /path/to/second.parquet\n"
+            "-rw-r--r--   3 user group 5567 2025-05-13 17:00 /path/to/third 123.parquet\n"
+        )
+    )
+
+    result = get_most_recent_file("/some/hdfs/path")
+    assert result == {'path': '/path/to/third 123.parquet', 'size': '5567'}
+
+    mock_run.return_value = Mock(
+        stdout=(
+            "Found 3 items\n"
+            "-rw-r--r--   3 user group 1234 2025-05-12 15:00 /path/to/first.parquet\n"
+            "drw-r--r--   3 user group 4567 2025-05-13 18:00 /path/to/second.parquet\n"
+            "-rw-r--r--   3 user group 5567 2025-05-13 17:00 /path/to/third 123.parquet\n"
+        )
+    )
+
+    result = get_most_recent_file("/some/hdfs/path")
+    assert result == {'path': '/path/to/third 123.parquet', 'size': '5567'}
+
+    mock_run.return_value = Mock(
+        stdout=(
+            "Found 1 items\n"
+            "drw-r--r--   3 user group 4567 2025-05-13 18:00 /path/to/second.parquet\n"
+        )
+    )
+
+    result = get_most_recent_file("/some/hdfs/path")
+    assert result is None

@@ -8,6 +8,7 @@ from pathlib import Path
 from target_parquet.sinks import ParquetSink
 
 from target_hdfs.utils.hdfs import (
+    create_hdfs_directory,
     read_most_recent_file,
     upload_to_hdfs,
 )
@@ -27,6 +28,7 @@ class HDFSSink(ParquetSink):
         self.hdfs_destination_path = os.path.join(
             self.config["hdfs_destination_path"], self.stream_name
         )
+        create_hdfs_directory(self.hdfs_destination_path)
         self.skip_existing_files = self.config.get("skip_existing_files", False)
         # Don't read the most recent file if partition_cols is set or if skip_existing_files is set
         hdfs_file = (
