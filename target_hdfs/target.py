@@ -53,10 +53,9 @@ class TargetHDFS(TargetParquet):
         TODO: Remove after https://github.com/meltano/sdk/pull/3040 is released.
         """
         if state:  # Check if state is not empty before emit
-            self.logger.info("CUSTOM STATE EMITTED: %s", state)
             super()._write_state_message(state)
         else:
-            self.logger.info("No state to write")
+            self.logger.info("No state to emit. Skipping.")
 
 
 if __name__ == "__main__":
