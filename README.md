@@ -18,6 +18,15 @@ Install from GitHub:
 pipx install git+https://github.com/Automattic/target-hdfs.git@main
 ```
 
+`constraints.txt` generation:
+
+```bash
+$ poetry self add poetry-plugin-export
+$ poetry export --output constraints.txt --without-hashes
+```
+and replace hashed with tagged version in `constraints.txt`:
+`target-parquet @ git+https://github.com/Automattic/target-parquet.git@v1.1.2 ; python_version >= "3.9" and python_version < "4"`
+
 ## Configuration
 
 ### Accepted Config Options
